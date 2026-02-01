@@ -1,0 +1,51 @@
+name: SK Framework CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (Ruff)
+        run: ruff check src/ tests/
+
+      - name: Format check (Black)
+        run: black --check src/ tests/
+
+      - name: Type check (MyPy)
+        run: mypy src/ --ignore-missing-imports
+        continue-on-error: true  # MVP — type errors are warnings for now
+
+      - name: Run tests
+        env:
+          SK_DRY_RUN: "true"  # Never hit real APIs in CI
+        run: |
+          pytest tests/ -v --cov=src --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false

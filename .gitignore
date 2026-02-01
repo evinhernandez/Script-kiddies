@@ -1,0 +1,39 @@
+# ─── Environment ───
+.env
+.env.local
+venv/
+.venv/
+env/
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# ─── Data ───
+data/
+*.db
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── Coverage ───
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ─── Logs ───
+*.log
+logs/
