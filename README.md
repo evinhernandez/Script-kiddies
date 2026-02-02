@@ -1,5 +1,5 @@
 # SK Framework
-### An open-source AI security testing & training framework by Script-Kiddies
+### An open-source AI security testing & training framework by Script-Kiddie
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-3ecfb2.svg?style=for-the-badge)](LICENSE)
 [![OWASP Aligned](https://img.shields.io/badge/OWASP-ML%20Top%2010-e8d48b.svg?style=for-the-badge)](https://owasp.org)
