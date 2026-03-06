@@ -3,14 +3,17 @@ click>=8.1.0              # CLI
 fastapi>=0.109.0          # API server
 uvicorn>=0.27.0           # ASGI server
 pydantic>=2.5.0           # Data validation
+pydantic-settings>=2.1.0  # Settings management
 pyyaml>=6.0.1             # Lab/config YAML parsing
 python-dotenv>=1.0.0      # .env loading
 rich>=13.7.0              # Terminal UI (tables, panels, colors)
+textual>=0.47.0           # Terminal User Interface framework
 
 # ─── LLM Clients ───
 openai>=1.10.0            # OpenAI API
 anthropic>=0.18.0         # Anthropic API
 google-generativeai>=0.3.0 # Google Gemini API
+litellm>=1.20.0           # Unified LLM client wrapper
 httpx>=0.26.0             # Async HTTP (for custom endpoints)
 
 # ─── Security & Scanning ───

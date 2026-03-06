@@ -1,0 +1,22 @@
+{
+  "project_name": "Script-kiddies",
+  "project_type": "AI Offensive Security Framework",
+  "bmad_roles": {
+    "Analyst": "Defines the problem space and project vision.",
+    "PM": "Translates vision into the PRD and manages scope.",
+    "Architect": "Designs the technical architecture.",
+    "Scrum Master": "Breaks down architecture into user stories.",
+    "Developer": "Implements stories strictly according to architecture."
+  },
+  "coding_standards": {
+    "language": "Python 3.11+",
+    "style": "ruff",
+    "typing": "strict",
+    "testing": "pytest"
+  },
+  "core_principles": [
+    "Modular Exploit Design",
+    "Deployable LLM Attack Agents",
+    "Project Memory Persistence"
+  ]
+}

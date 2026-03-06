@@ -19,7 +19,14 @@ Defense guidance:
     - Least-privilege principle for AI agents
 """
 
-from src.core.engine import BaseModule, ModuleMetadata, ModuleCategory, Difficulty, AttackResult
+from src.core.engine import (
+    BaseModule,
+    ModuleMetadata,
+    ModuleCategory,
+    Difficulty,
+    AttackResult,
+    ModuleOption,
+)
 from src.utils.logger import get_logger
 
 log = get_logger("prompt_injection")
@@ -87,6 +94,35 @@ class PromptInjectionModule(BaseModule):
             tags=["injection", "owasp-ml01", "beginner", "llm"],
         )
 
+    def get_options(self) -> list[ModuleOption]:
+        """Return configurable options for prompt injection."""
+        return [
+            ModuleOption(
+                name="TARGET",
+                default="openai",
+                description="LLM provider to attack (openai, anthropic, google)",
+                required=True,
+            ),
+            ModuleOption(
+                name="MODEL",
+                default="gpt-4o",
+                description="Model name to attack",
+                required=True,
+            ),
+            ModuleOption(
+                name="PAYLOAD",
+                default=None,
+                description="Specific payload to use (None = run all)",
+                required=False,
+            ),
+            ModuleOption(
+                name="SYSTEM_PROMPT",
+                default=None,
+                description="Target's system prompt (None = use default)",
+                required=False,
+            ),
+        ]
+
     def get_payloads(self) -> list[str]:
         """Return all available payloads."""
         return [p for _, p in ALL_PAYLOADS]
@@ -101,6 +137,8 @@ class PromptInjectionModule(BaseModule):
         target_model: str,
         payload: str | None = None,
         system_prompt: str | None = None,
+        on_event: Any | None = None,
+        **kwargs
     ) -> AttackResult:
         """
         Run the prompt injection attack.

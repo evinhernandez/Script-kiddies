@@ -37,7 +37,7 @@ class AttackSession(Base):
     score = Column(Float)
     signals = Column(Text)            # JSON array of signal strings
     details = Column(Text)
-    metadata = Column(Text)           # JSON blob for extra data
+    extra_metadata = Column(Text)     # JSON blob for extra data (renamed from metadata)
 
 
 # ─── Session Manager ───
@@ -67,21 +67,40 @@ class SessionManager:
         """
         session_id = str(uuid.uuid4())
 
+        # Support both Pydantic and legacy objects (for transition)
+        is_pydantic = hasattr(attack_result, "model_dump")
+
         with self.Session() as session:
-            record = AttackSession(
-                id=session_id,
-                module_name=attack_result.module,
-                target_provider=attack_result.provider,
-                target_model=attack_result.model,
-                payload=attack_result.payload,
-                response=attack_result.response,
-                result=attack_result.score.result.value,
-                confidence=attack_result.score.confidence,
-                score=attack_result.score.score,
-                signals=json.dumps(attack_result.score.signals),
-                details=attack_result.score.details,
-                metadata=json.dumps(attack_result.metadata),
-            )
+            if is_pydantic:
+                record = AttackSession(
+                    id=session_id,
+                    module_name=attack_result.module,
+                    target_provider=attack_result.provider,
+                    target_model=attack_result.model,
+                    payload=attack_result.payload,
+                    response=attack_result.response,
+                    result=attack_result.score.result.value,
+                    confidence=attack_result.score.confidence,
+                    score=attack_result.score.score,
+                    signals=json.dumps(attack_result.score.signals),
+                    details=attack_result.score.details,
+                    extra_metadata=json.dumps(attack_result.metadata),
+                )
+            else:
+                record = AttackSession(
+                    id=session_id,
+                    module_name=attack_result.module,
+                    target_provider=attack_result.provider,
+                    target_model=attack_result.model,
+                    payload=attack_result.payload,
+                    response=attack_result.response,
+                    result=attack_result.score.result.value,
+                    confidence=attack_result.score.confidence,
+                    score=attack_result.score.score,
+                    signals=json.dumps(attack_result.score.signals),
+                    details=attack_result.score.details,
+                    extra_metadata=json.dumps(attack_result.metadata),
+                )
             session.add(record)
             session.commit()
             log.info("session_saved", id=session_id, module=attack_result.module)

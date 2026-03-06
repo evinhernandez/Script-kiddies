@@ -23,12 +23,15 @@ setup(
         "fastapi>=0.109.0",
         "uvicorn>=0.27.0",
         "pydantic>=2.5.0",
+        "pydantic-settings>=2.1.0",
         "pyyaml>=6.0.1",
         "python-dotenv>=1.0.0",
         "rich>=13.7.0",
+        "textual>=0.47.0",
         "openai>=1.10.0",
         "anthropic>=0.18.0",
         "google-generativeai>=0.3.0",
+        "litellm>=1.20.0",
         "httpx>=0.26.0",
         "tiktoken>=0.5.0",
         "regex>=2023.12.0",
@@ -39,6 +42,7 @@ setup(
     entry_points={
         "console_scripts": [
             "sk=src.cli.main:sk",
+            "skconsole=src.cli.console:main",
         ],
     },
     classifiers=[

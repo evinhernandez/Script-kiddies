@@ -119,17 +119,31 @@ def modules_info(name: str):
 # ATTACK
 # ─────────────────────────────────
 
-@sk.command()
+@sk.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("module_name")
 @click.option("--target", "-t", default=None, help="LLM provider (openai, anthropic, google)")
 @click.option("--model", "-m", default=None, help="Model name (e.g. gpt-4o)")
 @click.option("--payload", "-p", default=None, help="Specific payload to use (None = auto)")
 @click.option("--system-prompt", "-s", default=None, help="Target system prompt")
 @click.option("--save/--no-save", default=True, help="Save result to session history")
-def attack(module_name: str, target: str, model: str, payload: str, system_prompt: str, save: bool):
-    """Run an attack module against a target LLM."""
+@click.option("--export", is_flag=True, default=False, help="Export results to exports/ directory")
+@click.pass_context
+def attack(ctx, module_name: str, target: str, model: str, payload: str, system_prompt: str, save: bool, export: bool):
+    """
+    Run an attack module against a target LLM.
+    
+    Extra options can be passed as --OPTION_NAME value (e.g. --MAX_TURNS 3).
+    """
     from src.core.engine import SKEngine
     from src.core.session import SessionManager
+
+    # Parse extra arguments into kwargs
+    extra_kwargs = {}
+    for i in range(0, len(ctx.args), 2):
+        if i + 1 < len(ctx.args):
+            key = ctx.args[i].lstrip("-").replace("-", "_").lower()
+            val = ctx.args[i+1]
+            extra_kwargs[key] = val
 
     async def _run():
         engine = SKEngine()
@@ -138,7 +152,8 @@ def attack(module_name: str, target: str, model: str, payload: str, system_promp
             f"[cyan]Module:[/cyan]   {module_name}\n"
             f"[cyan]Target:[/cyan]   {target or 'default'}\n"
             f"[cyan]Model:[/cyan]    {model or 'default'}\n"
-            f"[cyan]Payload:[/cyan]  {'specified' if payload else 'auto (full sweep)'}",
+            f"[cyan]Payload:[/cyan]  {'specified' if payload else 'auto (full sweep)'}\n"
+            f"[cyan]Extras:[/cyan]   {extra_kwargs if extra_kwargs else 'none'}",
             title="[bold yellow]⚔️  Attack Starting[/bold yellow]",
             border_style="yellow",
         ))
@@ -149,6 +164,7 @@ def attack(module_name: str, target: str, model: str, payload: str, system_promp
             target_model=model,
             payload=payload,
             system_prompt=system_prompt,
+            **extra_kwargs
         )
 
         # Display result
@@ -175,6 +191,12 @@ def attack(module_name: str, target: str, model: str, payload: str, system_promp
             session_mgr = SessionManager()
             session_id = session_mgr.save(result)
             rprint(f"[dim]Session saved: {session_id}[/dim]")
+
+        # Export to files
+        if export:
+            json_path = result.export_json()
+            md_path = result.export_markdown()
+            rprint(f"[green]Results exported:[/green]\n  • {json_path}\n  • {md_path}")
 
     run_async(_run())
 

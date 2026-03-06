@@ -168,11 +168,11 @@ class TestPromptInjectionModule:
         mod = PromptInjectionModule()
 
         with patch.object(mod, '_send_and_score', new_callable=AsyncMock) as mock_send:
-            from src.utils.scoring import ScoreResult, AttackResult as ScoreAttackResult
+            from src.utils.scoring import ScoreResult, ScoringStatus as ScoreAttackStatus
             mock_send.return_value = (
                 mock_llm_response,
                 ScoreResult(
-                    result=ScoreAttackResult.SUCCESS,
+                    result=ScoreAttackStatus.SUCCESS,
                     confidence=0.9,
                     score=0.9,
                     signals=["success_signal"],

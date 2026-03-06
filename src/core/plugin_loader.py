@@ -20,10 +20,7 @@ MODULES_DIR = Path(__file__).resolve().parents[1] / "modules"
 def discover_modules() -> dict[str, Any]:
     """
     Scan src/modules/ for all subdirectories containing attack modules.
-    Each valid module directory must:
-        - Have an __init__.py
-        - Export a class that extends BaseModule
-        - That class must have a `metadata` property
+    Supports recursive discovery.
 
     Returns:
         dict mapping module name -> module class
@@ -36,38 +33,36 @@ def discover_modules() -> dict[str, Any]:
         log.warning("modules_dir_missing", path=str(MODULES_DIR))
         return discovered
 
-    # Iterate over subdirectories in src/modules/
-    for item in sorted(MODULES_DIR.iterdir()):
-        if not item.is_dir():
-            continue
-        if item.name.startswith("_"):
-            continue  # Skip __pycache__ etc.
+    # pkgutil.walk_packages allows recursive discovery
+    # We provide the absolute path and the prefix for imports
+    import src.modules as modules_pkg
+    
+    for loader, module_name, is_pkg in pkgutil.walk_packages(modules_pkg.__path__, modules_pkg.__name__ + "."):
+        if is_pkg:
+            try:
+                mod = importlib.import_module(module_name)
 
-        init_file = item / "__init__.py"
-        if not init_file.exists():
-            continue
+                # Find the BaseModule subclass in the module
+                for attr_name in dir(mod):
+                    attr = getattr(mod, attr_name)
+                    if (
+                        isinstance(attr, type)
+                        and issubclass(attr, BaseModule)
+                        and attr is not BaseModule
+                    ):
+                        # Instantiate to grab metadata for the name
+                        try:
+                            instance = attr()
+                            name = instance.metadata.name
+                            discovered[name] = attr
+                            log.info("module_discovered", name=name, path=module_name)
+                        except Exception as e:
+                            log.error("module_init_failed", path=module_name, error=str(e))
+                        
+                        break  # One module class per package/directory
 
-        module_path = f"src.modules.{item.name}"
-
-        try:
-            mod = importlib.import_module(module_path)
-
-            # Find the BaseModule subclass in the module
-            for attr_name in dir(mod):
-                attr = getattr(mod, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, BaseModule)
-                    and attr is not BaseModule
-                ):
-                    # Instantiate to grab metadata for the name
-                    instance = attr()
-                    name = instance.metadata.name
-                    discovered[name] = attr
-                    log.info("module_discovered", name=name, path=module_path)
-                    break  # One module class per directory
-
-        except Exception as e:
-            log.error("module_load_failed", path=module_path, error=str(e))
+            except Exception as e:
+                # Silently skip modules that fail to import (might be submodules without BaseModule)
+                continue
 
     return discovered

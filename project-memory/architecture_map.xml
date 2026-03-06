@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<architecture_map>
+    <component name="skconsole">
+        <description>Interactive CLI interface (Metasploit-style) for selecting modules, setting targets, and deploying agents.</description>
+        <path>src/scriptkiddies/cli/console.py</path>
+    </component>
+    <component name="AgentDeployer">
+        <description>Handles the instantiation and execution loop of autonomous LLM attacker agents.</description>
+        <path>src/scriptkiddies/agents/deployer.py</path>
+    </component>
+    <component name="Exploits">
+        <description>Modular attacks containing goals, system prompts for the attacker, and success criteria.</description>
+        <path>src/scriptkiddies/exploits/</path>
+    </component>
+</architecture_map>

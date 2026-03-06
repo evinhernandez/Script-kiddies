@@ -5,7 +5,8 @@ Loads and validates all settings from environment / .env file.
 
 import os
 from pathlib import Path
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Auto-load .env from project root
@@ -21,9 +22,10 @@ class LLMProviderConfig(BaseSettings):
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
 
-    class Config:
-        env_prefix = ""
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_prefix="",
+        extra="ignore"
+    )
 
 
 class APIConfig(BaseSettings):
@@ -31,26 +33,30 @@ class APIConfig(BaseSettings):
     port: int = 8000
     debug: bool = False
 
-    class Config:
-        env_prefix = "SK_API_"
+    model_config = SettingsConfigDict(
+        env_prefix="SK_API_"
+    )
 
 
 class DatabaseConfig(BaseSettings):
     db_path: str = "./data/sk_sessions.db"
 
-    class Config:
-        env_prefix = "SK_"
+    model_config = SettingsConfigDict(
+        env_prefix="SK_"
+    )
 
 
 class LogConfig(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # json | text
 
-    class Config:
-        env_prefix = "SK_"
+    model_config = SettingsConfigDict(
+        env_prefix="SK_"
+    )
 
-    @validator("log_level")
-    def validate_log_level(cls, v):
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
         allowed = {"DEBUG", "INFO", "WARNING", "ERROR"}
         if v.upper() not in allowed:
             raise ValueError(f"log_level must be one of {allowed}")
@@ -61,8 +67,9 @@ class LabConfig(BaseSettings):
     lab_timeout_seconds: int = 300
     lab_max_attempts: int = 10
 
-    class Config:
-        env_prefix = "SK_"
+    model_config = SettingsConfigDict(
+        env_prefix="SK_"
+    )
 
 
 class SKConfig(BaseSettings):
@@ -80,11 +87,13 @@ class SKConfig(BaseSettings):
     log: LogConfig = LogConfig()
     lab: LabConfig = LabConfig()
 
-    class Config:
-        env_prefix = "SK_"
+    model_config = SettingsConfigDict(
+        env_prefix="SK_"
+    )
 
-    @validator("default_provider")
-    def validate_provider(cls, v):
+    @field_validator("default_provider")
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
         allowed = {"openai", "anthropic", "google"}
         if v.lower() not in allowed:
             raise ValueError(f"default_provider must be one of {allowed}")

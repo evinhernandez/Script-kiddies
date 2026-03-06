@@ -1,157 +1,103 @@
-# SK Framework
-### An open-source AI security testing & training framework by Script-Kiddie
+# SK Framework (Script-Kiddies)
+### An Open-Source Offensive Security Framework for AI Systems
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-3ecfb2.svg?style=for-the-badge)](LICENSE)
-[![OWASP Aligned](https://img.shields.io/badge/OWASP-ML%20Top%2010-e8d48b.svg?style=for-the-badge)](https://owasp.org)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3ecfb2.svg?style=for-the-badge)](https://python.org)
-[![Status](https://img.shields.io/badge/Status-MVP-c9a84c.svg?style=for-the-badge)]()
+![License: MIT](https://img.shields.io/badge/License-MIT-3ecfb2.svg?style=for-the-badge)
+![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge)
+![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg?style=for-the-badge)
 
-```
-> sk --help
-```
-
-**SK Framework** is a modular, plugin-based offensive security framework
-purpose-built for AI systems. Think Metasploit — but for LLMs, AI agents,
-and ML pipelines.
-
-Learn how AI systems get attacked. Learn how to defend them.
+SK Framework is a powerful, extensible red-teaming platform designed to test LLMs against prompt injection, jailbreaking, and data exfiltration. It features a cinematic terminal dashboard, an autonomous agent engine for multi-turn attacks, and professional reporting.
 
 ---
 
-## What is SK Framework?
+## 🚀 Key Features
 
-AI is everywhere. Security training hasn't caught up. SK Framework bridges
-that gap by giving security practitioners, developers, and students hands-on
-offensive tooling against AI systems in a safe, controlled environment.
-
-- **Attack AI systems** — prompt injection, jailbreaks, model poisoning, adversarial inputs, data exfiltration
-- **Train defenders** — guided labs mapped to OWASP ML Security Top 10
-- **Extend everything** — plugin architecture lets you write custom attack modules, labs, and scoring engines
-- **CTF-ready** — built-in challenge/flag system and leaderboards
-
----
-
-## Architecture
-
-```
-sk-framework/
-├── src/
-│   ├── core/                 # Engine: session manager, plugin loader, config
-│   │   ├── engine.py         # Main orchestration engine
-│   │   ├── session.py        # Attack session state management
-│   │   ├── plugin_loader.py  # Dynamic module discovery & loading
-│   │   └── config.py         # Configuration & env handling
-│   ├── modules/              # Attack & scan modules (the weapons rack)
-│   │   ├── prompt_injection/ # Prompt injection attacks
-│   │   ├── jailbreak/        # Jailbreak techniques
-│   │   ├── data_exfil/       # Data exfiltration probes
-│   │   └── adversarial/      # Adversarial input generation
-│   ├── labs/                 # Guided training labs
-│   │   ├── lab_runner.py     # Lab execution engine
-│   │   |- owasp_ml_top10/    # One lab per OWASP ML Top 10 item
-│   │   └── ctf/              # Capture The Flag challenges
-│   ├── api/                  # REST API server (FastAPI)
-│   │   ├── app.py            # FastAPI application
-│   │   ├── routes/           # Route handlers
-│   │   └── middleware/       # Auth, rate limiting, logging
-│   ├── cli/                  # Command-line interface
-│   │   └── main.py           # Click-based CLI
-│   └── utils/                # Shared utilities
-│       ├── llm_client.py     # Unified LLM API client
-│       ├── scoring.py        # Attack success scoring
-│       └── logger.py         # Structured logging
-├── labs/                     # Lab definition files (YAML)
-├── tests/                    # Test suite
-├── docs/                     # Documentation
-├── config/                   # Default configs
-├── scripts/                  # Setup & helper scripts
-└── .github/                  # GitHub Actions CI, issue templates
-```
+*   **Cinematic TUI Dashboard**: Real-time monitoring of attacks via a multi-pane Textual interface.
+*   **Autonomous Agent Engine**: A multi-turn "Attacker LLM" that adapts its payloads based on target responses.
+*   **LiteLLM Integration**: Seamlessly switch between OpenAI, Anthropic, Gemini, or local models (Ollama).
+*   **Dynamic Plugin System**: Add new exploits by dropping Python files into `src/modules/`.
+*   **Headless Mode**: Integrate into CI/CD pipelines with simple CLI commands.
+*   **Professional Reporting**: Export attack results to JSON and human-readable Markdown reports.
+*   **Deterministic Verification**: Use "Expected Flags" to verify successful leaks without LLM hallucinations.
 
 ---
 
-## Quick Start
+## 🛠️ Installation
 
-### Prerequisites
-- Python 3.10+
-- An API key for at least one LLM provider (OpenAI, Anthropic, Google, etc.)
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/your-repo/script-kiddies.git
+    cd script-kiddies
+    ```
 
-### Install
+2.  **Create a virtual environment**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
+3.  **Install the framework**:
+    ```bash
+    pip install -e .
+    pip install -r requirements-dev.txt
+    ```
+
+4.  **Configure Environment**:
+    Create a `.env` file in the root:
+    ```bash
+    OPENAI_API_KEY=your_key_here
+    ANTHROPIC_API_KEY=your_key_here
+    ```
+
+---
+
+## 🕹️ Usage
+
+### 1. Interactive Console (The REPL)
+Launch the Matrix-themed operator console:
 ```bash
-git clone https://github.com/script-kiddies/sk-framework.git
-cd sk-framework
-pip install -r requirements.txt
-cp config/.env.template .env
-# Edit .env with your API keys
+skconsole
 ```
+**Commands:**
+*   `show modules`: List available attack vectors.
+*   `use <module>`: Load an exploit.
+*   `show options`: See required parameters.
+*   `set TARGET <provider>`: Configure your target.
+*   `run`: Launch the cinematic dashboard and execute the attack.
 
-### First Run
-
+### 2. Headless Mode (Automation)
+Run a single attack and export the report:
 ```bash
-# List all available attack modules
-sk modules list
+sk attack prompt_injection --target openai --model gpt-4o --export
+```
 
-# Run a prompt injection attack against a target model
-sk attack prompt_injection --target openai --model gpt-4o --payload auto
-
-# Start an interactive lab
-sk lab start owasp_ml_01
-
-# Launch the web UI (API + dashboard)
-sk serve --port 8000
-
-# Run CTF challenges
-sk ctf list
-sk ctf start prompt_escape_001
+### 3. Agentic Attacks
+Force a model to leak its secret instructions using the autonomous agent:
+```bash
+sk attack agentic_prompt_extraction --max_turns 5 --expected_flag "SECRET-123"
 ```
 
 ---
 
-## OWASP ML Security Top 10 — Lab Mapping
+## 🏗️ Architecture
 
-| # | OWASP Item | SK Lab | Module |
-|---|-----------|--------|--------|
-| ML01 | Input Manipulation | `owasp_ml_01` | `prompt_injection` |
-| ML02 | Data Poisoning | `owasp_ml_02` | `data_poisoning` |
-| ML03 | Model Inversion | `owasp_ml_03` | `model_inversion` |
-| ML04 | Membership Inference | `owasp_ml_04` | `membership_inference` |
-| ML05 | Model Theft | `owasp_ml_05` | `model_extraction` |
-| ML06 | AI Supply Chain | `owasp_ml_06` | `supply_chain` |
-| ML07 | Transfer Learning Attack | `owasp_ml_07` | `transfer_attack` |
-| ML08 | Model Skewing | `owasp_ml_08` | `model_skewing` |
-| ML09 | Integrity Attacks | `owasp_ml_09` | `integrity` |
-| ML10 | Model Denial of Service | `owasp_ml_10` | `dos_attack` |
+The framework is divided into three main layers:
+1.  **Core Engine**: Orchestrates module discovery, session persistence (SQLite), and scoring.
+2.  **Agent Layer**: Manages multi-turn conversation state and autonomous payload generation.
+3.  **UI Layer**: Provides both a high-fidelity Textual dashboard and a scriptable Click CLI.
 
 ---
 
-## Contributing
+## 🧪 Testing
 
-SK Framework is community-driven. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
-
-1. Fork the repo
-2. Branch: `git checkout -b feature/your-module`
-3. Build following the [Module Template](docs/module_template.md)
-4. Add tests in `tests/`
-5. Submit a PR — CI runs automatically
+Run the full test suite:
+```bash
+PYTHONPATH=. python3 -m unittest discover tests
+```
 
 ---
 
-## Roadmap
+## 🤝 Contributing
 
-- [x] Core engine & plugin architecture
-- [x] CLI interface
-- [x] Prompt injection module
-- [x] Jailbreak module
-- [x] OWASP ML Top 10 lab stubs
-- [ ] Data exfiltration module
-- [ ] Adversarial input generator
-- [ ] Web dashboard UI
-- [ ] CTF challenge engine
-- [ ] Leaderboard system
-- [ ] Docker containerized labs
-- [ ] OWASP project submission
+We welcome new modules! Check out `docs/MODULE_GUIDE.md` (coming soon) to learn how to write your own exploit plugins.
 
----
-
-*SK Framework is an educational security tool. Use responsibly and only against systems you own or have explicit permission to test.*
+*Disclaimer: SK Framework is for educational and authorized security testing purposes only. Use responsibly.*
