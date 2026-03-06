@@ -9,16 +9,35 @@ SK Framework is a powerful, extensible red-teaming platform designed to test LLM
 
 ---
 
-## 🚀 Key Features
+## 🚀 Quick Start
 
-*   **Cinematic TUI Dashboard**: Real-time monitoring of attacks via a multi-pane Textual interface.
-*   **Autonomous Agent Engine**: A multi-turn "Attacker LLM" that adapts its payloads based on target responses.
-*   **LiteLLM Integration**: Seamlessly switch between OpenAI, Anthropic, Gemini, or local models (Ollama).
-*   **Dynamic Plugin System**: Add new exploits by dropping Python files into `src/modules/`.
-*   **Headless Mode**: Integrate into CI/CD pipelines with simple CLI commands.
-*   **Professional Reporting**: Export attack results to JSON and human-readable Markdown reports.
-*   **Deterministic Verification**: Use "Expected Flags" to verify successful leaks without LLM hallucinations.
-*   **Instant Local Lab**: Spin up Ollama and OWASP AI Goat with a single Docker command.
+Get up and running in 60 seconds:
+
+```bash
+# 1. Clone and Install
+git clone https://github.com/evinhernandez/script-kiddies.git
+cd script-kiddies
+python3 -m venv venv && source venv/bin/activate
+pip install -e .
+
+# 2. Launch Operator Console
+skconsole
+
+# 3. Run your first autonomous attack
+sk(sk)> use agentic_prompt_extraction
+sk(agentic_prompt_extraction)> run
+```
+
+---
+
+## ✨ Key Features
+
+*   **Cinematic TUI Dashboard**: Real-time monitoring of attacks via a multi-pane Textual interface with live log streaming and latency tracking.
+*   **Autonomous Agent Engine**: A multi-turn "Attacker LLM" that automatically adapts its payloads based on target refusals or responses.
+*   **LiteLLM Integration**: Unified access to OpenAI, Anthropic, Gemini, or any local model via Ollama/vLLM.
+*   **Dynamic Plugin System**: Modular exploit architecture—just drop a Python file into `src/modules/` to add a new vector.
+*   **Deterministic Verification**: Use "Expected Flags" to verify successful leaks, eliminating LLM hallucinations in security reports.
+*   **Instant Local Lab**: Spin up a complete security testbed (Ollama + OWASP AI Goat) with a single Docker command.
 
 ---
 
@@ -29,98 +48,68 @@ We provide a pre-configured environment for "target practice" against local open
 ```bash
 cd labs/
 docker-compose up -d
+# Point framework at local Llama 3 running in Docker
 sk attack prompt_injection --model llama3 --base_url http://localhost:11434/v1
 ```
 See the [Lab Guide](docs/LAB_GUIDE.md) for full setup instructions.
 
 ---
 
-## 🏆 Exploit Showcase (Hall of Fame)
+## 🏗️ Architecture Overview
 
-The SK Framework has successfully demonstrated the following high-impact attack chains:
-*   **Llama 3 System Prompt Leak**: Extracted secret instructions from a base Llama 3 model in 3 turns using the autonomous agent.
-*   **Mistral 7B Roleplay Escape**: Successfully bypassed safety guardrails by pivoting to a "DAN" persona after an initial refusal.
-*   **OWASP AI Goat Flag Capture**: Automated the discovery and extraction of the 'SK-ALPHA' flag from the AI Goat vulnerable environment.
-
----
-
-## 🛠️ Installation
-
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/your-repo/script-kiddies.git
-    cd script-kiddies
-    ```
-
-2.  **Create a virtual environment**:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-3.  **Install the framework**:
-    ```bash
-    pip install -e .
-    pip install -r requirements-dev.txt
-    ```
-
-4.  **Configure Environment**:
-    Create a `.env` file in the root:
-    ```bash
-    OPENAI_API_KEY=your_key_here
-    ANTHROPIC_API_KEY=your_key_here
-    ```
+The framework is built for modularity and speed:
+1.  **Core Engine**: Handles module discovery, dynamic loading, and SQLite session persistence.
+2.  **Scoring Engine**: Multi-heuristic evaluation (regex, keyword, semantic) to determine attack success.
+3.  **Agent Layer**: Orchestrates multi-turn loops using a "thinking" attacker model.
+4.  **UI Layer**: Professional Textual dashboard for operators + Click CLI for automation.
 
 ---
 
-## 🕹️ Usage
+## 🛠️ Installation & Setup
 
-### 1. Interactive Console (The REPL)
-Launch the Matrix-themed operator console:
-```bash
-skconsole
-```
-**Commands:**
-*   `show modules`: List available attack vectors.
-*   `use <module>`: Load an exploit.
-*   `show options`: See required parameters.
-*   `set TARGET <provider>`: Configure your target.
-*   `run`: Launch the cinematic dashboard and execute the attack.
+### Prerequisites
+- Python 3.11 or higher
+- Docker & Docker Compose (for local labs)
 
-### 2. Headless Mode (Automation)
-Run a single attack and export the report:
+### Development Install
 ```bash
-sk attack prompt_injection --target openai --model gpt-4o --export
+pip install -e .
+pip install -r requirements-dev.txt
 ```
 
-### 3. Agentic Attacks
-Force a model to leak its secret instructions using the autonomous agent:
-```bash
-sk attack agentic_prompt_extraction --max_turns 5 --expected_flag "SECRET-123"
+### Configuration
+Create a `.env` file in the project root to store your API keys:
+```env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=x-...
+GOOGLE_API_KEY=...
 ```
-
----
-
-## 🏗️ Architecture
-
-The framework is divided into three main layers:
-1.  **Core Engine**: Orchestrates module discovery, session persistence (SQLite), and scoring.
-2.  **Agent Layer**: Manages multi-turn conversation state and autonomous payload generation.
-3.  **UI Layer**: Provides both a high-fidelity Textual dashboard and a scriptable Click CLI.
 
 ---
 
 ## 🧪 Testing
 
-Run the full test suite:
+Run the full test suite to ensure everything is configured correctly:
 ```bash
 PYTHONPATH=. python3 -m unittest discover tests
 ```
 
 ---
 
+## ❓ Troubleshooting
+
+*   **ModuleNotFoundError: No module named 'pydantic_settings'**: Run `pip install pydantic-settings`. The framework uses Pydantic v2 features.
+*   **ConnectionRefusedError (localhost:8001/11434)**: Ensure your local target or Docker containers are running before starting the attack.
+*   **TUI looks garbled**: Use a modern terminal emulator (like iTerm2, WezTerm, or VS Code Terminal) that supports TrueColor and UTF-8.
+
+---
+
 ## 🤝 Contributing
 
-We welcome new modules! Check out `docs/MODULE_GUIDE.md` (coming soon) to learn how to write your own exploit plugins.
+We are looking for security researchers to contribute new exploits! 
+- Read the [Module Development Guide](docs/MODULE_GUIDE.md).
+- Submit a PR with your new module in `src/modules/<category>/`.
 
-*Disclaimer: SK Framework is for educational and authorized security testing purposes only. Use responsibly.*
+---
+
+*Disclaimer: SK Framework is for educational and authorized security testing purposes only. The authors are not responsible for misuse.*
