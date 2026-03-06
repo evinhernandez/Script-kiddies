@@ -285,7 +285,7 @@ class SKConsole(cmd.Cmd):
                 for key, val in sorted(data.items()):
                     if key == '_modules':
                         continue
-                    sub_branch = branch.add(f"[bold cyan]{key}[/bold cyan]")
+                    sub_branch = branch.add(f"[bold cyan]📁 {key.upper()}[/bold cyan]")
                     add_to_tree(sub_branch, val)
                 
                 # Add actual modules at this level
@@ -293,14 +293,25 @@ class SKConsole(cmd.Cmd):
                     for m in sorted(data['_modules'], key=lambda x: x.name):
                         leaf_name = m.name.split('.')[-1]
                         difficulty_color = "green" if m.difficulty.value == "beginner" else "yellow" if m.difficulty.value == "intermediate" else "red"
-                        branch.add(
-                            f"[bold white]{leaf_name}[/bold white] "
-                            f"[dim]({m.owasp_mapping or 'N/A'})[/dim] "
-                            f"[[{difficulty_color}]{m.difficulty.value}[/{difficulty_color}]]"
+                        
+                        # Create a stylized node for the module
+                        module_node = branch.add(
+                            f"[bold white]⚔️ {leaf_name}[/bold white] "
+                            f"[[{difficulty_color}]{m.difficulty.value.upper()}[/{difficulty_color}]]"
                         )
+                        
+                        # Add metadata as children for deep description
+                        if m.description:
+                            # Wrap description for readability
+                            desc = m.description if len(m.description) < 80 else m.description[:77] + "..."
+                            module_node.add(f"[italic dim]{desc}[/italic dim]")
+                        
+                        if m.owasp_mapping:
+                            module_node.add(f"[dim]OWASP Mapping: [bold white]{m.owasp_mapping}[/bold white][/dim]")
 
             add_to_tree(tree, hierarchy)
             console.print(tree)
+            console.print("\nType [bold cyan]use <name>[/bold cyan] to load a module (e.g., [italic]use injection.direct[/italic]).\n")
         
         elif arg == 'history':
             console.print("[italic yellow][*] History feature coming soon...[/italic yellow]")
