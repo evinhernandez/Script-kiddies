@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Local LLM Runner
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sk-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    restart: always
+
+  # Vulnerable-by-design AI App
+  aigoat:
+    image: owasp/aigoat:latest
+    container_name: sk-aigoat
+    ports:
+      - "8080:8080"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    restart: on-failure
+
+networks:
+  default:
+    name: sk-network

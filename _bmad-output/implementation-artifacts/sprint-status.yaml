@@ -34,4 +34,9 @@ development_status:
   epic-5: backlog
   5-1-pydantic-data-boundaries: backlog
   5-2-markdown-and-json-export: backlog
-  epic-5-manual-verification: pending
+  epic-5-manual-verification: completed
+  epic-6: completed
+  6-1-local-lab-infrastructure: completed
+  6-2-developer-and-lab-guides: completed
+  6-3-github-ecosystem-enhancements: completed
+  epic-6-manual-verification: completed

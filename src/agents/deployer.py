@@ -27,7 +27,9 @@ class AgentDeployer:
         goal: str,
         expected_flag: str | None = None,
         max_turns: int = 5,
-        on_event: Optional[callable] = None
+        on_event: Optional[callable] = None,
+        base_url: str | None = None,
+        api_key: str | None = None
     ) -> AttackResult:
         """
         Executes the autonomous loop.
@@ -49,7 +51,8 @@ class AgentDeployer:
         log.info("agent_deploy_start", 
                  goal=goal, 
                  max_turns=max_turns, 
-                 attacker=f"{self.attacker_provider}/{self.attacker_model}")
+                 attacker=f"{self.attacker_provider}/{self.attacker_model}",
+                 base_url=base_url)
         
         for turn in range(max_turns):
             turn_num = turn + 1
@@ -77,7 +80,9 @@ class AgentDeployer:
                 target_model=target_model,
                 system_prompt=system_prompt,
                 payload=payload,
-                expected_flag=expected_flag
+                expected_flag=expected_flag,
+                base_url=base_url,
+                api_key=api_key
             )
             total_tokens += target_resp.usage.get("prompt_tokens", 0) + target_resp.usage.get("completion_tokens", 0)
 

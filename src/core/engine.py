@@ -162,7 +162,6 @@ class BaseModule(abc.ABC):
         """Execute the attack."""
         ...
 
-    # ─── Helper: Send and Score ───
     async def _send_and_score(
         self,
         prompt: str,
@@ -171,6 +170,8 @@ class BaseModule(abc.ABC):
         system_prompt: str | None = None,
         payload: str | None = None,
         expected_flag: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
     ) -> tuple[LLMResponse, ScoreResult]:
         """
         Convenience method: sends a prompt to the target LLM and scores the result.
@@ -180,6 +181,8 @@ class BaseModule(abc.ABC):
             system_prompt=system_prompt,
             provider=target_provider,
             model=target_model,
+            base_url=base_url,
+            api_key=api_key,
         )
 
         response = await self.llm.send(request)

@@ -18,6 +18,29 @@ SK Framework is a powerful, extensible red-teaming platform designed to test LLM
 *   **Headless Mode**: Integrate into CI/CD pipelines with simple CLI commands.
 *   **Professional Reporting**: Export attack results to JSON and human-readable Markdown reports.
 *   **Deterministic Verification**: Use "Expected Flags" to verify successful leaks without LLM hallucinations.
+*   **Instant Local Lab**: Spin up Ollama and OWASP AI Goat with a single Docker command.
+
+---
+
+## 🔬 Local Security Lab
+
+We provide a pre-configured environment for "target practice" against local open-source LLMs.
+
+```bash
+cd labs/
+docker-compose up -d
+sk attack prompt_injection --model llama3 --base_url http://localhost:11434/v1
+```
+See the [Lab Guide](docs/LAB_GUIDE.md) for full setup instructions.
+
+---
+
+## 🏆 Exploit Showcase (Hall of Fame)
+
+The SK Framework has successfully demonstrated the following high-impact attack chains:
+*   **Llama 3 System Prompt Leak**: Extracted secret instructions from a base Llama 3 model in 3 turns using the autonomous agent.
+*   **Mistral 7B Roleplay Escape**: Successfully bypassed safety guardrails by pivoting to a "DAN" persona after an initial refusal.
+*   **OWASP AI Goat Flag Capture**: Automated the discovery and extraction of the 'SK-ALPHA' flag from the AI Goat vulnerable environment.
 
 ---
 
