@@ -4,10 +4,11 @@ Full-screen TUI for real-time attack monitoring using Textual.
 """
 
 import random
+import asyncio
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, RichLog, Label, Tree
+from textual.widgets import Header, Footer, Static, RichLog, Label, Tree, LoadingIndicator
 from textual.binding import Binding
 from textual.message import Message
 from rich.tree import Tree as RichTree
@@ -108,6 +109,21 @@ class SKDashboard(App):
         color: #000000;
     }
 
+    #pwnd-banner {
+        background: #FF0000;
+        color: #FFFFFF;
+        text-align: center;
+        text-style: bold;
+        display: none;
+        margin-top: 1;
+        padding: 1;
+    }
+
+    #loading-container {
+        height: 3;
+        content-align: center middle;
+    }
+
     Tree {
         background: #000000;
         color: #00FFFF;
@@ -138,6 +154,11 @@ class SKDashboard(App):
                     yield Static(f"\n[bold cyan]Target:[/bold cyan]\n{self.target}", id="lbl-target")
                     yield Static(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}", id="lbl-tokens")
                     yield Static(f"\n[bold cyan]Latency:[/bold cyan]\n0ms", id="lbl-latency")
+                    
+                    yield Static("", id="pwnd-banner")
+                    yield Static("\n[dim]Hacking In Progress...[/dim]", id="lbl-hacking")
+                    with Container(id="loading-container"):
+                        yield LoadingIndicator(id="loading-spinner")
                 
                 # CENTER: Logs & Brain
                 with Vertical(id="center-stack"):
@@ -235,6 +256,7 @@ class SKDashboard(App):
         
         # Update Status
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
+        self.query_one("#lbl-hacking").update("\n[blink bold yellow]TARGETING SYSTEM...[/blink bold yellow]")
 
     def on_target_responded(self, event: TargetResponded) -> None:
         turn = event.data.get("turn")
@@ -252,6 +274,13 @@ class SKDashboard(App):
         self.log_to_pane("agent-log", f"[bold {res_color}]Target Responded ({result_str.upper()}):[/bold {res_color}]")
         self.log_to_pane("agent-log", f"{response[:400]}...")
         
+        # Check for compromise!
+        if is_success:
+            banner = self.query_one("#pwnd-banner")
+            banner.styles.display = "block"
+            banner.update("[b]!!! PWND !!![/b]\nCOMPROMISE DETECTED")
+            self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
+
         # Route to Education
         if remediation:
             self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Turn {turn}):[/bold {res_color}]")
@@ -267,10 +296,13 @@ class SKDashboard(App):
         # Update Status
         self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
+        self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
+        self.query_one("#loading-spinner").remove()
+        self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
         
         # Final quote in brain log for style
         quote = random.choice(HACKER_QUOTES)
