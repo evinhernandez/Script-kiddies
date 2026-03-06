@@ -100,11 +100,11 @@ class SKDashboard(App):
     }
 
     #brain-pane {
-        border: solid #A020F0; /* Purple for Attacker Brain */
+        border: solid #A020F0;
     }
 
     #education-pane {
-        border: solid #FFD700; /* Gold for Education */
+        border: solid #FFD700;
     }
 
     .pane-title {
@@ -154,6 +154,7 @@ class SKDashboard(App):
         background: #002200;
         border: none;
         color: #00FF00;
+        width: 100%;
     }
 
     Tree {
@@ -188,8 +189,8 @@ class SKDashboard(App):
         self.total_tokens = 0
         self.last_turn_node = None
         self.is_zoomed = False
-        self.session_history = []
         self.is_compromised = False
+        self.winning_payload = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -215,10 +216,10 @@ class SKDashboard(App):
                 with Vertical(id="center-stack"):
                     with Vertical(id="logs-pane", classes="pane sub-pane"):
                         yield Label("IO TRAFFIC (RAW)", classes="pane-title")
-                        yield RichLog(id="agent-log", highlight=True, markup=True)
+                        yield RichLog(id="agent-log", highlight=True, markup=True, wrap=True)
                     with Vertical(id="brain-pane", classes="pane sub-pane"):
                         yield Label("ATTACKER BRAIN (THOUGHTS)", classes="pane-title brain-title")
-                        yield RichLog(id="brain-log", markup=True)
+                        yield RichLog(id="brain-log", markup=True, wrap=True)
                 
                 # RIGHT: Tree & Education
                 with Vertical(id="right-stack"):
@@ -227,10 +228,10 @@ class SKDashboard(App):
                         yield Tree("Attack Root", id="threat-tree")
                     with Vertical(id="education-pane", classes="pane sub-pane"):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
-                        yield RichLog(id="edu-log", markup=True)
+                        yield RichLog(id="edu-log", markup=True, wrap=True)
             
             with Horizontal(id="shell-container"):
-                yield Label("[bold green]SESSION_SHELL $> [/bold green]", variant="side")
+                yield Label("[bold green]SESSION_SHELL $> [/bold green]")
                 yield Input(placeholder="Send follow-up command to compromised model...", id="shell-input")
         yield Footer()
 
@@ -264,20 +265,19 @@ class SKDashboard(App):
         center = self.query_one("#center-stack")
         right = self.query_one("#right-stack")
 
-        # Hide all first
         for p in [status, center, right]:
-            p.add_class("hidden")
-            p.remove_class("zoomed")
+            p.set_class(False, "zoomed")
+            p.set_class(True, "hidden")
 
         if pane_type == "status":
-            status.remove_class("hidden")
-            status.add_class("zoomed")
+            status.set_class(True, "zoomed")
+            status.set_class(False, "hidden")
         elif pane_type == "center":
-            center.remove_class("hidden")
-            center.add_class("zoomed")
+            center.set_class(True, "zoomed")
+            center.set_class(False, "hidden")
         elif pane_type == "right":
-            right.remove_class("hidden")
-            right.add_class("zoomed")
+            right.set_class(True, "zoomed")
+            right.set_class(False, "hidden")
 
     def action_reset_layout(self) -> None:
         """Reset layout to 3-pane view."""
@@ -287,12 +287,15 @@ class SKDashboard(App):
         right = self.query_one("#right-stack")
 
         for p in [status, center, right]:
-            p.remove_class("hidden")
-            p.remove_class("zoomed")
+            p.set_class(False, "hidden")
+            p.set_class(False, "zoomed")
 
     def log_to_pane(self, pane_id: str, message: str):
         """Helper to write to specific log panes."""
-        self.query_one(f"#{pane_id}", RichLog).write(message)
+        try:
+            self.query_one(f"#{pane_id}", RichLog).write(message)
+        except Exception:
+            pass
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
@@ -309,7 +312,6 @@ class SKDashboard(App):
                 self.post_message(AttackComplete(data))
 
         try:
-            # Parse provider/model
             if '/' in self.target:
                 provider, model = self.target.split('/', 1)
             else:
@@ -330,9 +332,9 @@ class SKDashboard(App):
             
             if status == "SUCCESS":
                 self.is_compromised = True
-                # Show Shell
+                # Show Shell using 'block' which is supported by Textual
                 shell = self.query_one("#shell-container")
-                shell.styles.display = "flex"
+                shell.styles.display = "block"
                 self.query_one("#shell-input").focus()
 
         except Exception as e:
@@ -346,20 +348,16 @@ class SKDashboard(App):
         thought = event.data.get("thought", "Calculating strategy...")
         payload = event.data.get("payload", "")
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
+        self.winning_payload = payload # Keep track of potential winner
         
-        # Route to Logs
         self.log_to_pane("agent-log", f"\n[bold magenta]— TURN {turn} —[/bold magenta]")
         self.log_to_pane("agent-log", f"[bold cyan]Payload fired:[/bold cyan] {payload[:300]}")
-        
-        # Route to Brain
         self.log_to_pane("brain-log", f"\n[bold magenta]Turn {turn} Rationale:[/bold magenta]")
         self.log_to_pane("brain-log", f"{thought}")
         
-        # Update Tree
         tree = self.query_one("#threat-tree", Tree)
         self.last_turn_node = tree.root.add(f"[bold yellow]Turn {turn}:[/bold yellow] Attempt", expand=True)
         
-        # Update Status
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.query_one("#lbl-payload").update(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]{payload[:100]}...[/dim]")
 
@@ -375,19 +373,17 @@ class SKDashboard(App):
         is_failure = (result_str.lower() == "failure")
         res_color = "green" if is_success else "yellow" if not is_failure else "red"
         
-        # Route to Logs
         self.log_to_pane("agent-log", f"[bold {res_color}]Target Responded ({result_str.upper()}):[/bold {res_color}]")
         self.log_to_pane("agent-log", f"{response[:400]}...")
         
-        # Check for compromise!
         if is_success:
+            self.is_compromised = True
             banner = self.query_one("#pwnd-banner")
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
             
-            # Show Winning Exploit
-            payload = self.query_one("#lbl-payload").content
-            self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{payload}[/bold white]")
+            # Show Winning Exploit clearly
+            self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{self.winning_payload}[/bold white]")
 
             # Educational Tracing (Reproduction)
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
@@ -395,52 +391,36 @@ class SKDashboard(App):
             curl_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{...}}]}}'"
             self.log_to_pane("edu-log", f"\n[bold green]REPRODUCTION STEPS:[/bold green]")
             self.log_to_pane("edu-log", f"[dim]{curl_cmd}[/dim]")
+            self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
-        # Route to Education
         if remediation:
             self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Turn {turn}):[/bold {res_color}]")
             self.log_to_pane("edu-log", f"{remediation}")
         
-        # Update Tree
         if self.last_turn_node:
             icon = "✅" if is_success else "❌" if is_failure else "⚠️"
             resp_node = self.last_turn_node.add(f"{icon} [bold {res_color}]Response ({result_str})[/bold {res_color}]")
             for signal in score_data.get("signals", []):
                 resp_node.add(f"[dim]{signal}[/dim]")
         
-        # Update Status
         self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle manual interaction in the Virtual Shell."""
-        if not self.is_compromised:
-            return
-        
         user_text = event.value
-        if not user_text:
-            return
+        if not user_text: return
         
-        # Clear input
         self.query_one("#shell-input", Input).value = ""
-        
-        # Log to IO
         self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
         
-        # Send to LLM
         client = LLMClient()
-        if '/' in self.target:
-            provider, model = self.target.split('/', 1)
-        else:
-            provider, model = "openai", self.target
+        provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
             
         req = LLMRequest(
-            prompt=user_text,
-            target_provider=provider,
-            target_model=model,
-            base_url=self.engine_kwargs.get("base_url"),
-            api_key=self.engine_kwargs.get("api_key")
+            prompt=user_text, target_provider=provider, target_model=model,
+            base_url=self.engine_kwargs.get("base_url"), api_key=self.engine_kwargs.get("api_key")
         )
         
         self.log_to_pane("agent-log", "[dim]Shell communicating with target...[/dim]")
@@ -454,13 +434,10 @@ class SKDashboard(App):
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         
-        # Hide loading spinner
         spinner = self.query_one("#loading-spinner")
         spinner.styles.display = "none"
-        
         self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
         
-        # Final quote in brain log for style
         quote = random.choice(HACKER_QUOTES)
         self.log_to_pane("brain-log", f"\n[italic cyan]\"{quote}\"[/italic cyan]")
 
