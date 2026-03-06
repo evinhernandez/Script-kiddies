@@ -90,11 +90,30 @@ class SKConsole(cmd.Cmd):
     # ─── Tab Completion ───
 
     def complete_use(self, text, line, begidx, endidx):
-        """Complete module names."""
+        """Complete module names with hierarchy support."""
         modules = [m.name for m in self.engine.list_modules()]
+        
+        # If the user has already typed some parts (e.g., "injection.")
+        if '.' in text:
+            # We want to suggest the next level
+            # e.g., for "injection." suggest "injection.direct", "injection.indirect"
+            prefix = text.rsplit('.', 1)[0] + '.'
+            suggestions = [m for m in modules if m.startswith(text)]
+            return suggestions
+        
+        # Top level categories
+        categories = sorted(list(set([m.split('.')[0] for m in modules])))
         if not text:
-            return modules
-        return [m for m in modules if m.startswith(text)]
+            return categories
+        
+        # Suggest categories that start with text
+        suggestions = [c for c in categories if c.startswith(text)]
+        # If there's only one category match, maybe they want the full module names?
+        if len(suggestions) == 1:
+            full_matches = [m for m in modules if m.startswith(text)]
+            return full_matches
+            
+        return suggestions
 
     def complete_set(self, text, line, begidx, endidx):
         """Complete variable names."""
@@ -243,15 +262,44 @@ class SKConsole(cmd.Cmd):
 
         elif arg == 'modules':
             modules = self.engine.list_modules()
-            table = Table(title="Available Modules", show_header=True, header_style="bold magenta")
-            table.add_column("Name", style="cyan")
-            table.add_column("Category", style="green")
-            table.add_column("Difficulty", style="yellow")
-            table.add_column("Description", style="white")
-
+            tree = Tree("[bold green]Exploit Library[/bold green]")
+            
+            # Group modules by their dotted path
+            # e.g., {'injection': {'direct': [m1, m2], 'indirect': [m3]}}
+            hierarchy = {}
             for m in modules:
-                table.add_row(m.name, m.category.value, m.difficulty.value, m.description)
-            console.print(table)
+                parts = m.name.split('.')
+                curr = hierarchy
+                for part in parts[:-1]:
+                    if part not in curr:
+                        curr[part] = {}
+                    curr = curr[part]
+                
+                if '_modules' not in curr:
+                    curr['_modules'] = []
+                curr['_modules'].append(m)
+
+            def add_to_tree(branch, data):
+                # Add sub-categories
+                for key, val in sorted(data.items()):
+                    if key == '_modules':
+                        continue
+                    sub_branch = branch.add(f"[bold cyan]{key}[/bold cyan]")
+                    add_to_tree(sub_branch, val)
+                
+                # Add actual modules at this level
+                if '_modules' in data:
+                    for m in sorted(data['_modules'], key=lambda x: x.name):
+                        leaf_name = m.name.split('.')[-1]
+                        difficulty_color = "green" if m.difficulty.value == "beginner" else "yellow" if m.difficulty.value == "intermediate" else "red"
+                        branch.add(
+                            f"[bold white]{leaf_name}[/bold white] "
+                            f"[dim]({m.owasp_mapping or 'N/A'})[/dim] "
+                            f"[[{difficulty_color}]{m.difficulty.value}[/{difficulty_color}]]"
+                        )
+
+            add_to_tree(tree, hierarchy)
+            console.print(tree)
         
         elif arg == 'history':
             console.print("[italic yellow][*] History feature coming soon...[/italic yellow]")

@@ -17,7 +17,7 @@ from src.core.engine import (
 from src.utils.logger import get_logger
 from typing import Any, Optional
 
-log = get_logger("prompt_injection")
+log = get_logger("injection.direct")
 
 
 # ─── Payload Library ───
@@ -63,8 +63,8 @@ class PromptInjectionModule(BaseModule):
     @property
     def metadata(self) -> ModuleMetadata:
         return ModuleMetadata(
-            name="prompt_injection",
-            display_name="Prompt Injection",
+            name="injection.direct",
+            display_name="Prompt Injection (Direct)",
             version="1.0.0",
             category=ModuleCategory.PROMPT_INJECTION,
             difficulty=Difficulty.BEGINNER,

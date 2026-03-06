@@ -17,7 +17,7 @@ from src.core.engine import (
 from src.utils.logger import get_logger
 from typing import Any, Optional
 
-log = get_logger("adversarial")
+log = get_logger("jailbreak.adversarial")
 
 # ─── Adversarial Payloads ───
 
@@ -47,7 +47,7 @@ class AdversarialModule(BaseModule):
     @property
     def metadata(self) -> ModuleMetadata:
         return ModuleMetadata(
-            name="adversarial",
+            name="jailbreak.adversarial",
             display_name="Adversarial Evasion",
             version="1.0.0",
             category=ModuleCategory.ADVERSARIAL,
@@ -67,6 +67,7 @@ class AdversarialModule(BaseModule):
             ModuleOption(name="MODEL", default="gpt-4o", required=True),
             ModuleOption(name="PAYLOAD", default=None, required=False),
             ModuleOption(name="BASE_URL", default=None, required=False),
+            ModuleOption(name="API_KEY", default=None, required=False),
         ]
 
     def get_payloads(self) -> list[str]:

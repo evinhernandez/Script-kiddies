@@ -22,8 +22,8 @@ class SystemPromptExtractionModule(BaseModule):
     @property
     def metadata(self) -> ModuleMetadata:
         return ModuleMetadata(
-            name="agentic_prompt_extraction",
-            display_name="Agentic System Prompt Extraction",
+            name="extraction.agentic",
+            display_name="System Prompt Extraction (Agentic)",
             version="1.0.0",
             category=ModuleCategory.PROMPT_INJECTION,
             difficulty=Difficulty.INTERMEDIATE,

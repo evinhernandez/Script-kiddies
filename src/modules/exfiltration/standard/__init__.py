@@ -17,7 +17,7 @@ from src.core.engine import (
 from src.utils.logger import get_logger
 from typing import Any, Optional
 
-log = get_logger("data_exfil")
+log = get_logger("exfiltration.standard")
 
 # ─── Exfiltration Payloads ───
 
@@ -50,10 +50,10 @@ class DataExfiltrationModule(BaseModule):
     @property
     def metadata(self) -> ModuleMetadata:
         return ModuleMetadata(
-            name="data_exfil",
-            display_name="Data Exfiltration",
+            name="exfiltration.standard",
+            display_name="Data Exfiltration (Standard)",
             version="1.0.0",
-            category=ModuleCategory.DATA_EXFILTRATION,
+            category=ModuleCategory.SENSITIVE_INFO_DISCLOSURE,
             difficulty=Difficulty.INTERMEDIATE,
             owasp_mapping="LLM06",
             description=(
@@ -70,6 +70,7 @@ class DataExfiltrationModule(BaseModule):
             ModuleOption(name="MODEL", default="gpt-4o", required=True),
             ModuleOption(name="PAYLOAD", default=None, required=False),
             ModuleOption(name="BASE_URL", default=None, required=False),
+            ModuleOption(name="API_KEY", default=None, required=False),
         ]
 
     def get_payloads(self) -> list[str]:
