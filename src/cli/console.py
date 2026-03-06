@@ -28,8 +28,6 @@ class SKConsole(cmd.Cmd):
     """
     Interactive command shell for SK Framework.
     """
-    prompt = 'sk> '
-
     def __init__(self):
         super().__init__()
         self.engine = SKEngine()
@@ -41,7 +39,27 @@ class SKConsole(cmd.Cmd):
         self.current_module = None
         self.module_instance = None
         self.module_vars = {}
+        self._set_prompt()
         self._welcome_screen()
+
+    def _set_prompt(self, module_name: str = None):
+        """Helper to set the prompt with rendered rich markup."""
+        if module_name:
+            # Extract display name
+            display_name = module_name.split('.')[-1]
+            markup = f"sk([bold red]{display_name}[/bold red])> "
+        else:
+            markup = "sk> "
+        
+        # Render markup to ANSI string
+        # We wrap in \001 and \002 for readline to correctly calculate prompt length
+        with console.capture() as capture:
+            console.print(markup, end="")
+        ansi_text = capture.get()
+        
+        # Standard readline trick: wrap escape codes in \001 (RL_PROMPT_START_IGNORE) 
+        # and \002 (RL_PROMPT_END_IGNORE) so they don't break cursor positioning.
+        self.prompt = ansi_text.replace("\x1b", "\001\x1b").replace("m", "m\002")
 
     def _welcome_screen(self):
         """Display the Matrix-themed ASCII welcome screen."""
@@ -148,9 +166,8 @@ class SKConsole(cmd.Cmd):
             self.module_instance = module
             self.module_vars = {}  # Reset module-specific variables
             
-            # Extract display name from metadata for the prompt
-            display_name = module.metadata.name.split('.')[-1]
-            self.prompt = f'sk([bold red]{display_name}[/bold red])> '
+            # Use helper to set the stylized prompt
+            self._set_prompt(arg)
             console.print(f"[bold green][+][/bold green] Loaded module: [bold cyan]{arg}[/bold cyan]")
         except ValueError as e:
             console.print(f"[bold red][-][/bold red] Error: {e}")
@@ -278,7 +295,7 @@ class SKConsole(cmd.Cmd):
         """Unload the current module."""
         self.current_module = None
         self.module_instance = None
-        self.prompt = 'sk> '
+        self._set_prompt()
         console.print("[bold yellow][*][/bold yellow] Module unloaded.")
 
     def do_exit(self, arg):
