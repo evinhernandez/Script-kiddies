@@ -5,15 +5,18 @@ Full-screen TUI for real-time attack monitoring using Textual.
 
 import random
 import asyncio
+import json
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, RichLog, Label, Tree, LoadingIndicator
+from textual.widgets import Header, Footer, Static, RichLog, Label, Tree, LoadingIndicator, Input
 from textual.binding import Binding
 from textual.message import Message
 from rich.tree import Tree as RichTree
 from rich.panel import Panel
 from rich.text import Text
+
+from src.utils.llm_client import LLMClient, LLMRequest
 
 HACKER_QUOTES = [
     "Hack the planet! — Hackers (1995)",
@@ -139,6 +142,20 @@ class SKDashboard(App):
         content-align: center middle;
     }
 
+    #shell-container {
+        display: none;
+        height: 3;
+        border: tall #00FF00;
+        background: #002200;
+        padding: 0 1;
+    }
+
+    #shell-input {
+        background: #002200;
+        border: none;
+        color: #00FF00;
+    }
+
     Tree {
         background: #000000;
         color: #00FFFF;
@@ -171,6 +188,8 @@ class SKDashboard(App):
         self.total_tokens = 0
         self.last_turn_node = None
         self.is_zoomed = False
+        self.session_history = []
+        self.is_compromised = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -186,7 +205,7 @@ class SKDashboard(App):
                     yield Static(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]None[/dim]", id="lbl-payload")
                     
                     yield Static("", id="pwnd-banner")
-                    yield Static(f"\n[bold green]Extracted Secret:[/bold green]\n[dim]Waiting...[/dim]", id="lbl-secret")
+                    yield Static(f"\n[bold green]Exploit / Secret:[/bold green]\n[dim]Waiting...[/dim]", id="lbl-secret")
                     
                     yield Static("\n[dim]Initializing...[/dim]", id="lbl-hacking")
                     with Container(id="loading-container"):
@@ -209,6 +228,10 @@ class SKDashboard(App):
                     with Vertical(id="education-pane", classes="pane sub-pane"):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
                         yield RichLog(id="edu-log", markup=True)
+            
+            with Horizontal(id="shell-container"):
+                yield Label("[bold green]SESSION_SHELL $> [/bold green]", variant="side")
+                yield Input(placeholder="Send follow-up command to compromised model...", id="shell-input")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -304,9 +327,13 @@ class SKDashboard(App):
             color = "green" if status == "SUCCESS" else "red"
             
             self.log_to_pane("agent-log", f"\n[bold {color}]>>> SESSION TERMINATED: {status}[/bold {color}]")
-            self.log_to_pane("edu-log", f"\n[bold white]Final Summary:[/bold white]\n{result.score.details}")
-            if result.score.remediation:
-                self.log_to_pane("edu-log", f"\n[bold yellow]Remediation:[/bold yellow]\n{result.score.remediation}")
+            
+            if status == "SUCCESS":
+                self.is_compromised = True
+                # Show Shell
+                shell = self.query_one("#shell-container")
+                shell.styles.display = "flex"
+                self.query_one("#shell-input").focus()
 
         except Exception as e:
             self.log_to_pane("agent-log", f"\n[bold red]>>> CORE ENGINE CRASH:[/bold red] {str(e)}")
@@ -358,14 +385,16 @@ class SKDashboard(App):
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
             
-            # Find the secret in the response if possible
-            expected = self.engine_kwargs.get("expected_flag", "SECRET")
-            if expected and expected in response:
-                self.query_one("#lbl-secret").update(f"\n[bold red]Extracted Secret:[/bold red]\n[bold white]{expected}[/bold white]")
-            else:
-                self.query_one("#lbl-secret").update(f"\n[bold red]Extracted Secret:[/bold red]\n[italic dim]Data Leaked (Check Logs)[/italic dim]")
+            # Show Winning Exploit
+            payload = self.query_one("#lbl-payload").content
+            self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{payload}[/bold white]")
 
-            self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
+            # Educational Tracing (Reproduction)
+            base_url = self.engine_kwargs.get("base_url", "http://target/v1")
+            model = self.engine_kwargs.get("model", "phi3")
+            curl_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{...}}]}}'"
+            self.log_to_pane("edu-log", f"\n[bold green]REPRODUCTION STEPS:[/bold green]")
+            self.log_to_pane("edu-log", f"[dim]{curl_cmd}[/dim]")
 
         # Route to Education
         if remediation:
@@ -383,6 +412,43 @@ class SKDashboard(App):
         self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
+
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle manual interaction in the Virtual Shell."""
+        if not self.is_compromised:
+            return
+        
+        user_text = event.value
+        if not user_text:
+            return
+        
+        # Clear input
+        self.query_one("#shell-input", Input).value = ""
+        
+        # Log to IO
+        self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
+        
+        # Send to LLM
+        client = LLMClient()
+        if '/' in self.target:
+            provider, model = self.target.split('/', 1)
+        else:
+            provider, model = "openai", self.target
+            
+        req = LLMRequest(
+            prompt=user_text,
+            target_provider=provider,
+            target_model=model,
+            base_url=self.engine_kwargs.get("base_url"),
+            api_key=self.engine_kwargs.get("api_key")
+        )
+        
+        self.log_to_pane("agent-log", "[dim]Shell communicating with target...[/dim]")
+        try:
+            resp = await client.send(req)
+            self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
+        except Exception as e:
+            self.log_to_pane("agent-log", f"[bold red]SHELL ERROR:[/bold red] {str(e)}")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)

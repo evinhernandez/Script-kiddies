@@ -131,14 +131,20 @@ class AgentDeployer:
                     payload=payload,
                     response=target_resp.content,
                     score=score,
-                    metadata={"turns": turn_num, "agentic": True, "expected_flag": expected_flag, "total_tokens": total_tokens}
+                    metadata={
+                        "turns": turn_num, 
+                        "agentic": True, 
+                        "expected_flag": expected_flag, 
+                        "total_tokens": total_tokens,
+                        "history": chat_history # Add history here
+                    }
                 )
-                emit("attack_complete", result=result.model_dump(), total_tokens=total_tokens)
+                emit("attack_complete", result=result.model_dump(), total_tokens=total_tokens, history=chat_history)
                 return result
             
             # 4. Update history
-            chat_history.append({"role": "assistant", "content": f"Turn {turn_num} Thought: {thought}\nPayload: {payload}"})
-            chat_history.append({"role": "user", "content": f"Target Response: {target_resp.content}"})
+            chat_history.append({"role": "assistant", "content": payload})
+            chat_history.append({"role": "user", "content": target_resp.content})
 
         # Failure case
         result = AttackResult(
@@ -154,7 +160,7 @@ class AgentDeployer:
                 signals=["max_turns_exceeded"], 
                 score=0.0
             ),
-            metadata={"turns": max_turns, "agentic": True, "total_tokens": total_tokens}
+            metadata={"turns": max_turns, "agentic": True, "total_tokens": total_tokens, "history": chat_history}
         )
-        emit("attack_complete", result=result.model_dump(), total_tokens=total_tokens)
+        emit("attack_complete", result=result.model_dump(), total_tokens=total_tokens, history=chat_history)
         return result
