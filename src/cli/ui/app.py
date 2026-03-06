@@ -26,6 +26,19 @@ HACKER_QUOTES = [
     "Control is an illusion. — Mr. Robot",
 ]
 
+HACKER_STATUSES = [
+    "BRUTE-FORCING NEURAL GATEWAY...",
+    "BYPASSING CORPORATE FIREWALL...",
+    "INJECTING MALICIOUS HEURISTICS...",
+    "POISONING GRADIENT DESCENT...",
+    "HIJACKING ATTENTION HEADS...",
+    "EXTRACTING WEIGHT MATRICES...",
+    "CORRUPTING EMBEDDING SPACE...",
+    "SYNTHESIZING BYPASS TOKENS...",
+    "DECRYPTING SYSTEM CONTEXT...",
+    "RE-ROUTING LOGIC GATES...",
+]
+
 class EngineEvent(Message):
     """Base class for all engine-related events."""
     def __init__(self, data: dict = None):
@@ -117,6 +130,7 @@ class SKDashboard(App):
         display: none;
         margin-top: 1;
         padding: 1;
+        height: 3;
     }
 
     #loading-container {
@@ -128,11 +142,25 @@ class SKDashboard(App):
         background: #000000;
         color: #00FFFF;
     }
+
+    .zoomed {
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 100;
+    }
+
+    .hidden {
+        display: none;
+    }
     """
 
     BINDINGS = [
         Binding("q", "quit", "Quit Dashboard"),
         Binding("esc", "quit", "Return to Console"),
+        Binding("1", "focus_pane('status')", "Status"),
+        Binding("2", "focus_pane('center')", "Brain/IO"),
+        Binding("3", "focus_pane('right')", "Tree/Edu"),
+        Binding("0", "reset_layout", "Reset View"),
     ]
 
     def __init__(self, module_name: str, target: str, engine_kwargs: dict = None):
@@ -142,6 +170,7 @@ class SKDashboard(App):
         self.engine_kwargs = engine_kwargs or {}
         self.total_tokens = 0
         self.last_turn_node = None
+        self.is_zoomed = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -154,9 +183,10 @@ class SKDashboard(App):
                     yield Static(f"\n[bold cyan]Target:[/bold cyan]\n{self.target}", id="lbl-target")
                     yield Static(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}", id="lbl-tokens")
                     yield Static(f"\n[bold cyan]Latency:[/bold cyan]\n0ms", id="lbl-latency")
+                    yield Static(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]None[/dim]", id="lbl-payload")
                     
                     yield Static("", id="pwnd-banner")
-                    yield Static("\n[dim]Hacking In Progress...[/dim]", id="lbl-hacking")
+                    yield Static("\n[dim]Initializing...[/dim]", id="lbl-hacking")
                     with Container(id="loading-container"):
                         yield LoadingIndicator(id="loading-spinner")
                 
@@ -189,6 +219,51 @@ class SKDashboard(App):
         
         # Start the engine in a background worker
         self.run_worker(self.execute_engine())
+        # Start the hacker status rotator
+        self.run_worker(self.rotate_status())
+
+    async def rotate_status(self):
+        """Rotate through hacker status messages while engine is running."""
+        lbl = self.query_one("#lbl-hacking", Static)
+        while True:
+            if "COMPLETED" in str(lbl.content) or "CRASH" in str(lbl.content):
+                break
+            new_status = random.choice(HACKER_STATUSES)
+            lbl.update(f"\n[blink bold yellow]{new_status}[/blink bold yellow]")
+            await asyncio.sleep(2.5)
+
+    def action_focus_pane(self, pane_type: str) -> None:
+        """Zoom in on a specific pane stack."""
+        self.is_zoomed = True
+        status = self.query_one("#status-pane")
+        center = self.query_one("#center-stack")
+        right = self.query_one("#right-stack")
+
+        # Hide all first
+        for p in [status, center, right]:
+            p.add_class("hidden")
+            p.remove_class("zoomed")
+
+        if pane_type == "status":
+            status.remove_class("hidden")
+            status.add_class("zoomed")
+        elif pane_type == "center":
+            center.remove_class("hidden")
+            center.add_class("zoomed")
+        elif pane_type == "right":
+            right.remove_class("hidden")
+            right.add_class("zoomed")
+
+    def action_reset_layout(self) -> None:
+        """Reset layout to 3-pane view."""
+        self.is_zoomed = False
+        status = self.query_one("#status-pane")
+        center = self.query_one("#center-stack")
+        right = self.query_one("#right-stack")
+
+        for p in [status, center, right]:
+            p.remove_class("hidden")
+            p.remove_class("zoomed")
 
     def log_to_pane(self, pane_id: str, message: str):
         """Helper to write to specific log panes."""
@@ -233,6 +308,7 @@ class SKDashboard(App):
 
         except Exception as e:
             self.log_to_pane("agent-log", f"\n[bold red]>>> CORE ENGINE CRASH:[/bold red] {str(e)}")
+            self.query_one("#lbl-hacking").update("\n[bold red]ENGINE CRASHED[/bold red]")
 
     # ─── Event Handlers ───
 
@@ -256,7 +332,7 @@ class SKDashboard(App):
         
         # Update Status
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
-        self.query_one("#lbl-hacking").update("\n[blink bold yellow]TARGETING SYSTEM...[/blink bold yellow]")
+        self.query_one("#lbl-payload").update(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]{payload[:100]}...[/dim]")
 
     def on_target_responded(self, event: TargetResponded) -> None:
         turn = event.data.get("turn")
@@ -277,7 +353,7 @@ class SKDashboard(App):
         # Check for compromise!
         if is_success:
             banner = self.query_one("#pwnd-banner")
-            banner.styles.display = "block"
+            banner.styles.display = "block" # Ensure visibility
             banner.update("[b]!!! PWND !!![/b]\nCOMPROMISE DETECTED")
             self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
@@ -296,12 +372,15 @@ class SKDashboard(App):
         # Update Status
         self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
-        self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
-        self.query_one("#loading-spinner").remove()
+        
+        # Hide loading spinner
+        spinner = self.query_one("#loading-spinner")
+        spinner.styles.display = "none"
+        
         self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
         
         # Final quote in brain log for style
