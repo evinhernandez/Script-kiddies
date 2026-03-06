@@ -8,6 +8,16 @@ import sys
 import asyncio
 from typing import Any
 
+try:
+    import readline
+    # Fix backspace issues on macOS and enable history/tab-completion support
+    if sys.platform == 'darwin':
+        readline.parse_and_bind('bind "^[[3~" delete-char')
+    readline.parse_and_bind("tab: complete")
+except ImportError:
+    # Readline not available on all systems (e.g. Windows without msys)
+    pass
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text

@@ -7,7 +7,7 @@ import random
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, Log, Label, Tree
+from textual.widgets import Header, Footer, Static, RichLog, Label, Tree
 from textual.binding import Binding
 from textual.message import Message
 from rich.tree import Tree as RichTree
@@ -143,10 +143,10 @@ class SKDashboard(App):
                 with Vertical(id="center-stack"):
                     with Vertical(id="logs-pane", classes="pane sub-pane"):
                         yield Label("IO TRAFFIC (RAW)", classes="pane-title")
-                        yield Log(id="agent-log", highlight=True)
+                        yield RichLog(id="agent-log", highlight=True, markup=True)
                     with Vertical(id="brain-pane", classes="pane sub-pane"):
                         yield Label("ATTACKER BRAIN (THOUGHTS)", classes="pane-title brain-title")
-                        yield Log(id="brain-log")
+                        yield RichLog(id="brain-log", markup=True)
                 
                 # RIGHT: Tree & Education
                 with Vertical(id="right-stack"):
@@ -155,7 +155,7 @@ class SKDashboard(App):
                         yield Tree("Attack Root", id="threat-tree")
                     with Vertical(id="education-pane", classes="pane sub-pane"):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
-                        yield Log(id="edu-log")
+                        yield RichLog(id="edu-log", markup=True)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -171,7 +171,7 @@ class SKDashboard(App):
 
     def log_to_pane(self, pane_id: str, message: str):
         """Helper to write to specific log panes."""
-        self.query_one(f"#{pane_id}", Log).write_line(message)
+        self.query_one(f"#{pane_id}", RichLog).write(message)
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
