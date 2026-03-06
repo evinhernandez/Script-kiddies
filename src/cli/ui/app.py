@@ -85,11 +85,11 @@ class SKDashboard(App):
     }
 
     #status-pane {
-        width: 20%;
+        width: 25%;
     }
 
     #center-stack {
-        width: 50%;
+        width: 45%;
     }
 
     #right-stack {
@@ -130,7 +130,8 @@ class SKDashboard(App):
         display: none;
         margin-top: 1;
         padding: 1;
-        height: 3;
+        height: 5;
+        border: double white;
     }
 
     #loading-container {
@@ -185,6 +186,8 @@ class SKDashboard(App):
                     yield Static(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]None[/dim]", id="lbl-payload")
                     
                     yield Static("", id="pwnd-banner")
+                    yield Static(f"\n[bold green]Extracted Secret:[/bold green]\n[dim]Waiting...[/dim]", id="lbl-secret")
+                    
                     yield Static("\n[dim]Initializing...[/dim]", id="lbl-hacking")
                     with Container(id="loading-container"):
                         yield LoadingIndicator(id="loading-spinner")
@@ -352,8 +355,16 @@ class SKDashboard(App):
         # Check for compromise!
         if is_success:
             banner = self.query_one("#pwnd-banner")
-            banner.styles.display = "block" # Ensure visibility
-            banner.update("[b]!!! PWND !!![/b]\nCOMPROMISE DETECTED")
+            banner.styles.display = "block"
+            banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
+            
+            # Find the secret in the response if possible
+            expected = self.engine_kwargs.get("expected_flag", "SECRET")
+            if expected and expected in response:
+                self.query_one("#lbl-secret").update(f"\n[bold red]Extracted Secret:[/bold red]\n[bold white]{expected}[/bold white]")
+            else:
+                self.query_one("#lbl-secret").update(f"\n[bold red]Extracted Secret:[/bold red]\n[italic dim]Data Leaked (Check Logs)[/italic dim]")
+
             self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
         # Route to Education
@@ -371,6 +382,7 @@ class SKDashboard(App):
         # Update Status
         self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
+        self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)

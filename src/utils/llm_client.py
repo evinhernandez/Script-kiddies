@@ -6,6 +6,7 @@ Modules call LLMClient.send() — provider routing is handled by litellm.
 
 import time
 import asyncio
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 import litellm
