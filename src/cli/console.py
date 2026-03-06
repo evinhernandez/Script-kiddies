@@ -69,6 +69,41 @@ class SKConsole(cmd.Cmd):
         console.print(banner)
         console.print("\nType [bold cyan]help[/bold cyan] or [bold cyan]?[/bold cyan] to list commands.\n")
 
+    # ─── Tab Completion ───
+
+    def complete_use(self, text, line, begidx, endidx):
+        """Complete module names."""
+        modules = [m.name for m in self.engine.list_modules()]
+        if not text:
+            return modules
+        return [m for m in modules if m.startswith(text)]
+
+    def complete_set(self, text, line, begidx, endidx):
+        """Complete variable names."""
+        options = set(self.global_vars.keys())
+        if self.module_instance:
+            for opt in self.module_instance.get_options():
+                options.add(opt.name.upper())
+        
+        parts = line.split()
+        # If we're at the first part after 'set'
+        if len(parts) == 1 or (len(parts) == 2 and not line.endswith(' ')):
+            return [opt for opt in options if opt.startswith(text.upper())]
+        
+        # If we're completing the value, we can suggest some common ones for TARGET
+        if len(parts) >= 2 and parts[1].upper() == 'TARGET':
+            targets = ["openai", "anthropic", "google", "ollama"]
+            return [t for t in targets if t.startswith(text.lower())]
+        
+        return []
+
+    def complete_show(self, text, line, begidx, endidx):
+        """Complete show subcommands."""
+        options = ["options", "modules", "history"]
+        if not text:
+            return options
+        return [opt for opt in options if opt.startswith(text)]
+
     # ─── Core Commands ───
 
     def do_help(self, arg):

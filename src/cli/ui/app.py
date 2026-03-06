@@ -4,12 +4,13 @@ Full-screen TUI for real-time attack monitoring using Textual.
 """
 
 import random
+from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, Log, Label
+from textual.widgets import Header, Footer, Static, Log, Label, Tree
 from textual.binding import Binding
 from textual.message import Message
-from rich.tree import Tree
+from rich.tree import Tree as RichTree
 from rich.panel import Panel
 from rich.text import Text
 
@@ -23,25 +24,6 @@ HACKER_QUOTES = [
     "The world is a very different place now. — Mr. Robot",
     "Control is an illusion. — Mr. Robot",
 ]
-
-class ThreatGraph(Static):
-    """
-    A widget that displays a dynamic ASCII threat tree.
-    """
-    def on_mount(self) -> None:
-        self._tree = Tree("[bold cyan]Attack Root[/bold cyan]")
-        self.update(self._tree)
-
-    def add_node(self, label: str, success: bool | None = None):
-        """Add a new node to the tree."""
-        icon = ""
-        if success is True:
-            icon = "[bold green][✓][/bold green] "
-        elif success is False:
-            icon = "[bold red][X][/bold red] "
-        
-        self._tree.add(f"{icon}{label}")
-        self.update(self._tree)
 
 class EngineEvent(Message):
     """Base class for all engine-related events."""
@@ -82,16 +64,30 @@ class SKDashboard(App):
         padding: 1;
     }
 
-    #status-pane {
-        width: 25%;
+    .sub-pane {
+        border: solid #333333;
+        height: 50%;
+        padding: 1;
     }
 
-    #logs-pane {
+    #status-pane {
+        width: 20%;
+    }
+
+    #center-stack {
         width: 50%;
     }
 
-    #threat-pane {
-        width: 25%;
+    #right-stack {
+        width: 30%;
+    }
+
+    #brain-pane {
+        border: solid #A020F0; /* Purple for Attacker Brain */
+    }
+
+    #education-pane {
+        border: solid #FFD700; /* Gold for Education */
     }
 
     .pane-title {
@@ -100,6 +96,21 @@ class SKDashboard(App):
         color: #000000;
         text-style: bold;
         margin-bottom: 1;
+    }
+
+    .brain-title {
+        background: #A020F0;
+        color: #FFFFFF;
+    }
+
+    .edu-title {
+        background: #FFD700;
+        color: #000000;
+    }
+
+    Tree {
+        background: #000000;
+        color: #00FFFF;
     }
     """
 
@@ -114,37 +125,53 @@ class SKDashboard(App):
         self.target = target
         self.engine_kwargs = engine_kwargs or {}
         self.total_tokens = 0
+        self.last_turn_node = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Container(id="main-container"):
             with Horizontal():
+                # LEFT: Status
                 with Vertical(id="status-pane", classes="pane"):
                     yield Label("TARGET STATUS", classes="pane-title")
-                    yield Static(f"Module: {self.module_name}", id="lbl-module")
-                    yield Static(f"Target: {self.target}", id="lbl-target")
-                    yield Static(f"\nTokens: {self.total_tokens}", id="lbl-tokens")
-                    yield Static("Latency: 0ms", id="lbl-latency")
+                    yield Static(f"[bold cyan]Module:[/bold cyan]\n{self.module_name}", id="lbl-module")
+                    yield Static(f"\n[bold cyan]Target:[/bold cyan]\n{self.target}", id="lbl-target")
+                    yield Static(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}", id="lbl-tokens")
+                    yield Static(f"\n[bold cyan]Latency:[/bold cyan]\n0ms", id="lbl-latency")
                 
-                with Vertical(id="logs-pane", classes="pane"):
-                    yield Label("AGENT THOUGHTS / LOGS", classes="pane-title")
-                    yield Log(id="agent-log")
+                # CENTER: Logs & Brain
+                with Vertical(id="center-stack"):
+                    with Vertical(id="logs-pane", classes="pane sub-pane"):
+                        yield Label("IO TRAFFIC (RAW)", classes="pane-title")
+                        yield Log(id="agent-log", highlight=True)
+                    with Vertical(id="brain-pane", classes="pane sub-pane"):
+                        yield Label("ATTACKER BRAIN (THOUGHTS)", classes="pane-title brain-title")
+                        yield Log(id="brain-log")
                 
-                with Vertical(id="threat-pane", classes="pane"):
-                    yield Label("THREAT GRAPH", classes="pane-title")
-                    yield ThreatGraph(id="threat-tree")
+                # RIGHT: Tree & Education
+                with Vertical(id="right-stack"):
+                    with Vertical(id="threat-pane", classes="pane sub-pane"):
+                        yield Label("ATTACK TREE", classes="pane-title")
+                        yield Tree("Attack Root", id="threat-tree")
+                    with Vertical(id="education-pane", classes="pane sub-pane"):
+                        yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
+                        yield Log(id="edu-log")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.log_to_pane(f"Initializing dashboard for {self.module_name}...")
-        self.log_to_pane(f"Targeting: {self.target}")
+        self.log_to_pane("agent-log", f"[bold green]>>> I/O SUBSYSTEM ONLINE[/bold green]")
+        self.log_to_pane("brain-log", f"[bold green]>>> COGNITIVE ENGINE ONLINE[/bold green]")
+        
+        # Setup initial tree
+        tree = self.query_one("#threat-tree", Tree)
+        tree.root.expand()
         
         # Start the engine in a background worker
         self.run_worker(self.execute_engine())
 
-    def log_to_pane(self, message: str):
-        """Helper to write to the agent log pane."""
-        self.query_one("#agent-log", Log).write_line(message)
+    def log_to_pane(self, pane_id: str, message: str):
+        """Helper to write to specific log panes."""
+        self.query_one(f"#{pane_id}", Log).write_line(message)
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
@@ -153,7 +180,6 @@ class SKDashboard(App):
         engine = SKEngine()
         
         def engine_callback(event_type: str, data: dict):
-            # Map string event types to Textual Message classes
             if event_type == "attack_fired":
                 self.post_message(AttackFired(data))
             elif event_type == "target_responded":
@@ -162,8 +188,11 @@ class SKDashboard(App):
                 self.post_message(AttackComplete(data))
 
         try:
-            # We must use proper provider/model parsing here
-            provider, model = self.target.split('/', 1)
+            # Parse provider/model
+            if '/' in self.target:
+                provider, model = self.target.split('/', 1)
+            else:
+                provider, model = "openai", self.target
             
             result = await engine.run_module(
                 module_name=self.module_name,
@@ -173,62 +202,79 @@ class SKDashboard(App):
                 **self.engine_kwargs
             )
             
-            self.log_to_pane(f"\n[bold green]ATTACK COMPLETE[/bold green]")
-            self.log_to_pane(f"Final Result: {result.score.result.value.upper()}")
-            self.log_to_pane(f"Details: {result.score.details}")
+            status = result.score.result.value.upper()
+            color = "green" if status == "SUCCESS" else "red"
+            
+            self.log_to_pane("agent-log", f"\n[bold {color}]>>> SESSION TERMINATED: {status}[/bold {color}]")
+            self.log_to_pane("edu-log", f"\n[bold white]Final Summary:[/bold white]\n{result.score.details}")
+            if result.score.remediation:
+                self.log_to_pane("edu-log", f"\n[bold yellow]Remediation:[/bold yellow]\n{result.score.remediation}")
 
         except Exception as e:
-            self.log_to_pane(f"\n[bold red]ERROR:[/bold red] {str(e)}")
+            self.log_to_pane("agent-log", f"\n[bold red]>>> CORE ENGINE CRASH:[/bold red] {str(e)}")
 
     # ─── Event Handlers ───
 
     def on_attack_fired(self, event: AttackFired) -> None:
         turn = event.data.get("turn")
-        payload = event.data.get("payload")
+        thought = event.data.get("thought", "Calculating strategy...")
+        payload = event.data.get("payload", "")
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         
-        self.log_to_pane(f"\n[bold cyan]Turn {turn}: Attacker generating payload...[/bold cyan]")
-        self.log_to_pane(f"Payload: {payload[:200]}...")
-        self.query_one("#threat-tree", ThreatGraph).add_node(f"Turn {turn}: Payload Fired")
-        self.query_one("#lbl-tokens").update(f"\nTokens: {self.total_tokens}")
+        # Route to Logs
+        self.log_to_pane("agent-log", f"\n[bold magenta]— TURN {turn} —[/bold magenta]")
+        self.log_to_pane("agent-log", f"[bold cyan]Payload fired:[/bold cyan] {payload[:300]}")
+        
+        # Route to Brain
+        self.log_to_pane("brain-log", f"\n[bold magenta]Turn {turn} Rationale:[/bold magenta]")
+        self.log_to_pane("brain-log", f"{thought}")
+        
+        # Update Tree
+        tree = self.query_one("#threat-tree", Tree)
+        self.last_turn_node = tree.root.add(f"[bold yellow]Turn {turn}:[/bold yellow] Attempt", expand=True)
+        
+        # Update Status
+        self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
 
     def on_target_responded(self, event: TargetResponded) -> None:
         turn = event.data.get("turn")
         response = event.data.get("response")
         score_data = event.data.get("score", {})
-        result_obj = score_data.get("result", "unknown")
-        
-        # Extremely defensive conversion to string
-        if hasattr(result_obj, "value"):
-            result = str(result_obj.value)
-        else:
-            result = str(result_obj)
-            
+        result_str = str(score_data.get("result", "unknown"))
+        remediation = score_data.get("remediation", "")
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         
-        is_success = (result.lower() == "success")
-        is_failure = (result.lower() == "failure")
+        is_success = (result_str.lower() == "success")
+        is_failure = (result_str.lower() == "failure")
         res_color = "green" if is_success else "yellow" if not is_failure else "red"
         
-        self.log_to_pane(f"[bold {res_color}]Target Responded ({result}):[/bold {res_color}]")
-        self.log_to_pane(f"{response[:200]}...")
+        # Route to Logs
+        self.log_to_pane("agent-log", f"[bold {res_color}]Target Responded ({result_str.upper()}):[/bold {res_color}]")
+        self.log_to_pane("agent-log", f"{response[:400]}...")
         
-        # Update Threat Graph
-        self.query_one("#threat-tree", ThreatGraph).add_node(f"Turn {turn} Response: {result.upper()}", success=is_success if (is_success or is_failure) else None)
+        # Route to Education
+        if remediation:
+            self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Turn {turn}):[/bold {res_color}]")
+            self.log_to_pane("edu-log", f"{remediation}")
+        
+        # Update Tree
+        if self.last_turn_node:
+            icon = "✅" if is_success else "❌" if is_failure else "⚠️"
+            resp_node = self.last_turn_node.add(f"{icon} [bold {res_color}]Response ({result_str})[/bold {res_color}]")
+            for signal in score_data.get("signals", []):
+                resp_node.add(f"[dim]{signal}[/dim]")
         
         # Update Status
-        self.query_one("#lbl-latency").update(f"Latency: {event.data.get('latency_ms', 0)}ms")
-        self.query_one("#lbl-tokens").update(f"\nTokens: {self.total_tokens}")
+        self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
+        self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
-        self.query_one("#lbl-tokens").update(f"\nTokens: {self.total_tokens}")
+        self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         
-        self.log_to_pane("\n[bold magenta]*** Session Finalized ***[/bold magenta]")
-        
-        # Add random hacker quote to logs
+        # Final quote in brain log for style
         quote = random.choice(HACKER_QUOTES)
-        self.log_to_pane(f"\n[italic cyan]\"{quote}\"[/italic cyan]")
+        self.log_to_pane("brain-log", f"\n[italic cyan]\"{quote}\"[/italic cyan]")
 
 if __name__ == "__main__":
     app = SKDashboard("prompt_injection", "openai/gpt-4o")
