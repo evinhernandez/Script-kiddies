@@ -146,11 +146,10 @@ class SKDashboard(App):
     .zoomed {
         width: 100% !important;
         height: 100% !important;
-        z-index: 100;
     }
 
     .hidden {
-        display: none;
+        display: none !important;
     }
     """
 
