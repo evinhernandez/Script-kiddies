@@ -34,6 +34,7 @@ sk(agentic_prompt_extraction)> run
 
 *   **Cinematic TUI Dashboard**: Real-time monitoring of attacks via a multi-pane Textual interface with live log streaming and latency tracking.
 *   **Autonomous Agent Engine**: A multi-turn "Attacker LLM" that automatically adapts its payloads based on target refusals or responses.
+*   **Expanded Exploit Library**: Built-in modules for Prompt Injection (Direct & Indirect), Jailbreaking, Data Exfiltration (PII/Secrets), and Adversarial Evasion.
 *   **LiteLLM Integration**: Unified access to OpenAI, Anthropic, Gemini, or any local model via Ollama/vLLM.
 *   **Dynamic Plugin System**: Modular exploit architecture—just drop a Python file into `src/modules/` to add a new vector.
 *   **Deterministic Verification**: Use "Expected Flags" to verify successful leaks, eliminating LLM hallucinations in security reports.
