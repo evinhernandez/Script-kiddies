@@ -64,9 +64,11 @@ class SKConsole(cmd.Cmd):
         else:
             markup = "sk> "
         
-        # Render markup to ANSI string
-        with console.capture() as capture:
-            console.print(markup, end="")
+        # Force color=True during capture to ensure escape codes are generated
+        from rich.console import Console
+        ansi_console = Console(force_terminal=True, color_system="standard")
+        with ansi_console.capture() as capture:
+            ansi_console.print(markup, end="")
         ansi_text = capture.get()
         
         # Correctly wrap ANSI escape sequences for readline

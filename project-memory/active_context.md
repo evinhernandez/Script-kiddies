@@ -7,6 +7,8 @@
 
 ## Recent Achievements
 *   Implemented `skconsole` REPL with hierarchical state management.
+*   Fixed prompt rendering and color support in `skconsole`.
+*   Resolved backspace and line editing issues on macOS.
 *   Integrated `LiteLLM` for unified model access (100+ providers).
 *   Developed `AgentDeployer` for multi-turn autonomous attacks.
 *   Launched the `SKDashboard` (Textual TUI) with real-time threat trees.
