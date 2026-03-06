@@ -214,7 +214,7 @@ class SKEngine:
         """Auto-discover all modules in src/modules/."""
         from src.core.plugin_loader import discover_modules
         self._modules = discover_modules()
-        log.info("modules_loaded", count=len(self._modules), names=list(self._modules.keys()))
+        log.debug("modules_loaded", count=len(self._modules), names=list(self._modules.keys()))
 
     def list_modules(self) -> list[ModuleMetadata]:
         """Return metadata for all loaded modules, synced with canonical names."""

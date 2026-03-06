@@ -56,7 +56,7 @@ def discover_modules() -> dict[str, Any]:
                         canonical_name = module_full_name.replace("src.modules.", "")
                         
                         discovered[canonical_name] = attr
-                        log.info("module_discovered", name=canonical_name, path=module_full_name)
+                        log.debug("module_discovered", name=canonical_name, path=module_full_name)
                         
                         break  # Usually one primary module per file
 

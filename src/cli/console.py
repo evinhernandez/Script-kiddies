@@ -10,12 +10,14 @@ from typing import Any
 
 try:
     import readline
-    # Fix backspace issues on macOS and enable history/tab-completion support
-    if sys.platform == 'darwin':
+    # Support for macOS (which uses libedit by default)
+    if 'libedit' in readline.__doc__:
+        readline.parse_and_bind("bind ^[[3~ ed-delete-next-char")
+        readline.parse_and_bind("bind ^? ed-delete-prev-char")
+    else:
+        readline.parse_and_bind("tab: complete")
         readline.parse_and_bind('bind "^[[3~" delete-char')
-    readline.parse_and_bind("tab: complete")
 except ImportError:
-    # Readline not available on all systems (e.g. Windows without msys)
     pass
 
 from rich.console import Console

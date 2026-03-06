@@ -20,7 +20,13 @@ def _configure_structlog():
         structlog.processors.UnicodeDecoder(),
     ]
 
-    if config.log.log_format == "json":
+    # Default to text/console output for local CLI usage unless explicitly set to JSON
+    # This keeps the skconsole startup clean.
+    log_format = config.log.log_format
+    if sys.stdout.isatty() and log_format != "json":
+        log_format = "text"
+
+    if log_format == "json":
         processors = shared_processors + [structlog.processors.JSONRenderer()]
     else:
         processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]
