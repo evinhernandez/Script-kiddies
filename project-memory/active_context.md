@@ -9,6 +9,8 @@
 *   Implemented `skconsole` REPL with hierarchical state management.
 *   Fixed prompt rendering and color support in `skconsole`.
 *   Resolved backspace and line editing issues on macOS.
+*   Fixed `litellm` compatibility with local targets by ensuring strict OpenAI-compliant responses.
+*   Added comprehensive traceback logging to the `SKDashboard` for engine crashes.
 *   Integrated `LiteLLM` for unified model access (100+ providers).
 *   Developed `AgentDeployer` for multi-turn autonomous attacks.
 *   Launched the `SKDashboard` (Textual TUI) with real-time threat trees.

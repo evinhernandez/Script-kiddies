@@ -338,7 +338,10 @@ class SKDashboard(App):
                 self.query_one("#shell-input").focus()
 
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             self.log_to_pane("agent-log", f"\n[bold red]>>> CORE ENGINE CRASH:[/bold red] {str(e)}")
+            self.log_to_pane("agent-log", f"[dim]{error_details}[/dim]")
             self.query_one("#lbl-hacking").update("\n[bold red]ENGINE CRASHED[/bold red]")
 
     # ─── Event Handlers ───
