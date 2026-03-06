@@ -217,8 +217,13 @@ class SKEngine:
         log.info("modules_loaded", count=len(self._modules), names=list(self._modules.keys()))
 
     def list_modules(self) -> list[ModuleMetadata]:
-        """Return metadata for all loaded modules."""
-        return [mod().metadata for mod in self._modules.values()]
+        """Return metadata for all loaded modules, synced with canonical names."""
+        meta_list = []
+        for name, mod_class in self._modules.items():
+            m = mod_class().metadata
+            m.name = name # Sync name with loader's path-based name
+            meta_list.append(m)
+        return meta_list
 
     def get_module(self, name: str) -> BaseModule:
         """Get a module instance by name."""

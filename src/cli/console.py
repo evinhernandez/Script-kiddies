@@ -265,8 +265,7 @@ class SKConsole(cmd.Cmd):
             modules = self.engine.list_modules()
             tree = Tree("[bold green]Exploit Library[/bold green]")
             
-            # Group modules by their dotted path
-            # e.g., {'injection': {'direct': [m1, m2], 'indirect': [m3]}}
+            # Group modules by their dotted path hierarchy
             hierarchy = {}
             for m in modules:
                 parts = m.name.split('.')
@@ -276,42 +275,41 @@ class SKConsole(cmd.Cmd):
                         curr[part] = {}
                     curr = curr[part]
                 
-                if '_modules' not in curr:
-                    curr['_modules'] = []
-                curr['_modules'].append(m)
+                if '_techniques' not in curr:
+                    curr['_techniques'] = []
+                curr['_techniques'].append(m)
 
             def add_to_tree(branch, data):
-                # Add sub-categories
+                # Add sub-categories (folders)
                 for key, val in sorted(data.items()):
-                    if key == '_modules':
+                    if key == '_techniques':
                         continue
                     sub_branch = branch.add(f"[bold cyan]📁 {key.upper()}[/bold cyan]")
                     add_to_tree(sub_branch, val)
                 
-                # Add actual modules at this level
-                if '_modules' in data:
-                    for m in sorted(data['_modules'], key=lambda x: x.name):
+                # Add specific techniques (leaf nodes)
+                if '_techniques' in data:
+                    for m in sorted(data['_techniques'], key=lambda x: x.name):
                         leaf_name = m.name.split('.')[-1]
                         difficulty_color = "green" if m.difficulty.value == "beginner" else "yellow" if m.difficulty.value == "intermediate" else "red"
                         
-                        # Create a stylized node for the module
-                        module_node = branch.add(
-                            f"[bold white]⚔️ {leaf_name}[/bold white] "
+                        # Technqiue header
+                        tech_node = branch.add(
+                            f"[bold white]⚔️  {m.display_name}[/bold white] "
+                            f"[dim]({m.name})[/dim] "
                             f"[[{difficulty_color}]{m.difficulty.value.upper()}[/{difficulty_color}]]"
                         )
                         
-                        # Add metadata as children for deep description
+                        # Detailed Description
                         if m.description:
-                            # Wrap description for readability
-                            desc = m.description if len(m.description) < 80 else m.description[:77] + "..."
-                            module_node.add(f"[italic dim]{desc}[/italic dim]")
+                            tech_node.add(f"[italic dim]{m.description}[/italic dim]")
                         
                         if m.owasp_mapping:
-                            module_node.add(f"[dim]OWASP Mapping: [bold white]{m.owasp_mapping}[/bold white][/dim]")
+                            tech_node.add(f"[dim]OWASP: [bold white]{m.owasp_mapping}[/bold white][/dim]")
 
             add_to_tree(tree, hierarchy)
             console.print(tree)
-            console.print("\nType [bold cyan]use <name>[/bold cyan] to load a module (e.g., [italic]use injection.direct[/italic]).\n")
+            console.print("\nType [bold cyan]use <canonical_name>[/bold cyan] to load (e.g., [italic]use injection.direct.basic[/italic]).\n")
         
         elif arg == 'history':
             console.print("[italic yellow][*] History feature coming soon...[/italic yellow]")
