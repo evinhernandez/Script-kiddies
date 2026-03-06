@@ -65,14 +65,15 @@ class SKConsole(cmd.Cmd):
             markup = "sk> "
         
         # Render markup to ANSI string
-        # We wrap in \001 and \002 for readline to correctly calculate prompt length
         with console.capture() as capture:
             console.print(markup, end="")
         ansi_text = capture.get()
         
-        # Standard readline trick: wrap escape codes in \001 (RL_PROMPT_START_IGNORE) 
-        # and \002 (RL_PROMPT_END_IGNORE) so they don't break cursor positioning.
-        self.prompt = ansi_text.replace("\x1b", "\001\x1b").replace("m", "m\002")
+        # Correctly wrap ANSI escape sequences for readline
+        # \001 (RL_PROMPT_START_IGNORE) and \002 (RL_PROMPT_END_IGNORE)
+        import re
+        ansi_escape = re.compile(r'(\x1b\[[0-9;]*m)')
+        self.prompt = ansi_escape.sub(r'\001\1\002', ansi_text)
 
     def _welcome_screen(self):
         """Display the Matrix-themed ASCII welcome screen."""
