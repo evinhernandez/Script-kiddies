@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
+from rich.tree import Tree
 from rich.live import Live
 from rich.align import Align
 
