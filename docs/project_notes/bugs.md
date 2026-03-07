@@ -22,3 +22,15 @@
 - **Root Cause**: Named a column `metadata` in the `AttackSession` ORM model. SQLAlchemy uses `metadata` for its own internal registry.
 - **Solution**: Renamed the column to `extra_metadata`.
 - **Prevention**: Avoid using `metadata`, `table`, or `query` as column names in SQLAlchemy models.
+
+## 2026-03-07 - LiteLLM Compliance Error
+- **Issue**: `litellm.exceptions.InternalServerError: OpenAIException - Invalid response object`
+- **Root Cause**: The local ACME lab app returned a response that was missing required OpenAI fields (`usage`, `model`, etc.) or had invalid `finish_reason` values.
+- **Solution**: Refactored `src/labs/acme_app.py` to use a helper that generates strictly compliant OpenAI response objects.
+- **Prevention**: Always verify that custom target proxies adhere to the target API specification (e.g., OpenAI spec).
+
+## 2026-03-07 - Console Prompt Corruption
+- **Issue**: Prompt looked like `pt)> sk(prom` instead of `sk(prompt)>`.
+- **Root Cause**: A blind string replacement of the letter `m` in ANSI color codes was accidentally matching characters in the module names themselves.
+- **Solution**: Used a precise regular expression to wrap only the ANSI escape sequences with readline ignore characters (`\001` and `\002`).
+- **Prevention**: Never perform global string replacements on strings containing both UI text and ANSI control codes.

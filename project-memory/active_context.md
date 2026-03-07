@@ -1,29 +1,27 @@
-# Active Context: Core Framework Completion (Epics 1-6)
+# Active Context: Comprehensive Framework Stabilization (Epics 1-6+)
 
 ## Current Status
-*   **Epic 1-5 Core Framework**: COMPLETED.
-*   **Epic 6 Ecosystem & Labs**: COMPLETED.
-*   The framework is now fully operational with an interactive console, autonomous agent loop, cinematic TUI dashboard, and local security lab (Ollama/AI Goat).
+*   **Core Framework (Epics 1-5)**: COMPLETED.
+*   **Ecosystem & Community (Epic 6)**: COMPLETED.
+*   **UX & Robustness Refinement**: COMPLETED.
+*   The framework is now fully verified with 48 passing unit tests and an end-to-end ACME Corp pentest lab.
 
 ## Recent Achievements
-*   Implemented `skconsole` REPL with hierarchical state management.
-*   Fixed prompt rendering and color support in `skconsole`.
-*   Resolved backspace and line editing issues on macOS.
-*   Fixed `litellm` compatibility with local targets by ensuring strict OpenAI-compliant responses.
-*   Added comprehensive traceback logging to the `SKDashboard` for engine crashes.
-*   Integrated `LiteLLM` for unified model access (100+ providers).
-*   Developed `AgentDeployer` for multi-turn autonomous attacks.
-*   Launched the `SKDashboard` (Textual TUI) with real-time threat trees.
-*   Established Pydantic v2 data boundaries and SQLite persistence.
-*   Created automated local lab environment via Docker Compose.
-*   Documented exploit development in `MODULE_GUIDE.md` and lab usage in `LAB_GUIDE.md`.
+*   Implemented **Hierarchical Module System** with deep Tree visualization.
+*   Launched the **Interactive Virtual Shell** for post-exploitation and lateral pivoting.
+*   Fixed critical prompt rendering, color support, and macOS backspace issues.
+*   Overhauled **ScoringEngine** with multi-heuristic "Strict/Soft Refusal" intelligence.
+*   Achieved **Full Test Coverage** for scoring, sessions, and plugin loading.
+*   Built the **ACME Corp "Vulnerability Buffet"** for high-fidelity lab testing.
+*   Refactored all core data models to **Pydantic v2** for robust serialization.
 
 ## Next Steps
-*   Expand the exploit library with more OWASP LLM Top 10 modules (e.g., Data Exfiltration, RAG Poisoning).
-*   Implement multi-user session sharing or web-based dashboard (Epic 7 candidate).
-*   Integrate with external security scanners (e.g., Garak, Giskard).
+*   Develop **Epic 7: Automated Campaigns**: YAML-based multi-module attack chains.
+*   Expand **OWASP Exploit Library**: Add RAG Poisoning and Model Denial of Service modules.
+*   Enhance **Telemetry**: Export live tail logs to persistent forensic files.
 
 ## Notes for AI Agents
-*   Rigorously maintain the `BaseModule` interface for all new plugins.
-*   Utilize `on_event` callbacks for UI-facing real-time logging.
-*   Follow Pydantic models in `src/core/engine.py` for all data serialization.
+*   Always use the **dotted canonical names** for modules (e.g. `injection.direct.basic`).
+*   Ensure every new module is its own `.py` file for auto-categorization.
+*   Verify all TUI changes against `RichLog` with `markup=True` for color integrity.
+*   Maintain the **48-test baseline** by running `pytest` before every major push.

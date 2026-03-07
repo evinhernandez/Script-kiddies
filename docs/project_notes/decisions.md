@@ -23,3 +23,19 @@
 - ✅ Guaranteed runtime type safety.
 - ✅ One-line JSON serialization (`model_dump_json`).
 - ✅ Clean interface between the Engine, Console, and TUI layers.
+
+### ADR-004: Hierarchical Module Structure (2026-03-07)
+**Context**: As the exploit library grows, a flat structure becomes difficult to navigate and maintain.
+**Decision**: Adopt a filesystem-based hierarchical structure (`category/subcategory/technique.py`) and auto-generate canonical dotted names.
+**Consequences**:
+- ✅ Intuitive navigation via Tree-based module browser.
+- ✅ Simplified module creation: "New File = New Categorized Exploit".
+- ✅ Support for granular technique selection (e.g., `injection.direct.roleplay`).
+
+### ADR-005: Interactive Post-Exploitation Shell (2026-03-07)
+**Context**: Red teamers need to follow up successful jailbreaks with manual probing.
+**Decision**: Implement a `SESSION_SHELL` within the dashboard that persists the compromised context.
+**Consequences**:
+- ✅ Real-time interaction with cracked models.
+- ✅ Lateral movement support via `/run <module>` within the same session.
+- ✅ Eliminates the need to restart the entire attack chain for follow-up questions.
