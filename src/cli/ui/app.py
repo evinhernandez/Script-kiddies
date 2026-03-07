@@ -336,6 +336,8 @@ class SKDashboard(App):
                 shell = self.query_one("#shell-container")
                 shell.styles.display = "block"
                 self.query_one("#shell-input").focus()
+            else:
+                self.query_one("#lbl-secret").update(f"\n[bold red]Exploit / Secret:[/bold red]\n[dim]No secret found.[/dim]")
 
         except Exception as e:
             import traceback
@@ -421,9 +423,13 @@ class SKDashboard(App):
         client = LLMClient()
         provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
             
+        # FIX: Corrected argument names from target_provider/target_model to provider/model
         req = LLMRequest(
-            prompt=user_text, target_provider=provider, target_model=model,
-            base_url=self.engine_kwargs.get("base_url"), api_key=self.engine_kwargs.get("api_key")
+            prompt=user_text, 
+            provider=provider, 
+            model=model,
+            base_url=self.engine_kwargs.get("base_url"), 
+            api_key=self.engine_kwargs.get("api_key")
         )
         
         self.log_to_pane("agent-log", "[dim]Shell communicating with target...[/dim]")

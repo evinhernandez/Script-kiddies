@@ -75,6 +75,8 @@ def make_openai_response(content: str, finish_reason: str = "stop") -> dict:
 @app.post("/v1/chat/completions")
 async def chat_proxy(request: ChatRequest):
     user_messages = request.messages
+    print(f"[*] Received request for model: {request.model}")
+    print(f"[*] Last message: {user_messages[-1].content[:50]}...")
     
     # ─── VULNERABILITY 1: Weak Input Filter ───
     forbidden = ["password", "secret key"]
