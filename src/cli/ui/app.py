@@ -358,7 +358,8 @@ class SKDashboard(App):
         # 1. Main Telemetry Log
         self.telemetry_history.append(prefix)
         if data:
-            data_str = json.dumps(data, indent=2)
+            # Use default=str to handle non-serializable objects like Enums
+            data_str = json.dumps(data, indent=2, default=str)
             for line in data_str.splitlines():
                 self.telemetry_history.append(f"  [dim]{line}[/dim]")
         
@@ -366,7 +367,8 @@ class SKDashboard(App):
         try:
             log_widget = self.query_one("#telemetry-log-full", RichLog)
             log_widget.write(prefix)
-            if data: log_widget.write(data_str)
+            if data:
+                log_widget.write(json.dumps(data, indent=2, default=str))
         except Exception: pass
         
         # 3. Agent Log Summary
