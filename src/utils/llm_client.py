@@ -143,8 +143,12 @@ class LLMClient:
             
         messages.append({"role": "user", "content": request.prompt})
 
+        log.debug("litellm_pre_call", model=litellm_model, message_count=len(messages))
+            
         start = time.perf_counter()
         try:
+            # LiteLLM acompletion handles all providers
+            # We pass api_key and base_url if provided
             resp = await litellm.acompletion(
                 model=litellm_model,
                 messages=messages,
@@ -155,11 +159,17 @@ class LLMClient:
             )
 
             latency_ms = round((time.perf_counter() - start) * 1000, 2)
-            
+
+            # Robust extraction of content
+            if not resp or not hasattr(resp, 'choices') or not resp.choices:
+                raise ValueError(f"LiteLLM returned an empty or invalid response object: {resp}")
+
+            content = resp.choices[0].message.content or ""
+
             return LLMResponse(
                 provider=provider,
                 model=model,
-                content=resp.choices[0].message.content or "",
+                content=content,
                 usage={
                     "prompt_tokens": getattr(resp.usage, 'prompt_tokens', 0),
                     "completion_tokens": getattr(resp.usage, 'completion_tokens', 0),
@@ -169,5 +179,6 @@ class LLMClient:
             )
 
         except Exception as e:
+            error_msg = f"LiteLLM Error ({provider}/{model}): {str(e)}"
             log.error("llm_call_failed", provider=provider, model=model, error=str(e))
-            raise
+            raise RuntimeError(error_msg) from e
