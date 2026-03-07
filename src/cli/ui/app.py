@@ -69,19 +69,20 @@ class ShellSuggester(Suggester):
     """Provides tab completion for the session shell."""
     def __init__(self, modules: list[str]):
         super().__init__(use_cache=False)
-        self.modules = modules
+        self.modules = sorted(modules)
         self.cmds = ["/run ", "/help", "/clear", "exit", "quit"]
 
     async def get_suggestion(self, value: str) -> Optional[str]:
         if not value: return None
+        v = value.lower()
         
         # Command completion
         for cmd in self.cmds:
-            if cmd.startswith(value.lower()):
+            if cmd.startswith(v):
                 return cmd
         
         # Module completion for /run
-        if value.lower().startswith("/run "):
+        if v.startswith("/run "):
             typed_mod = value[5:]
             for mod in self.modules:
                 if mod.startswith(typed_mod):
@@ -136,8 +137,12 @@ class SKDashboard(App):
 
     .sub-pane {
         border: solid #333333;
-        height: 50%;
+        height: 33%;
         padding: 1;
+    }
+
+    .sub-pane-half {
+        height: 50%;
     }
 
     #status-pane {
@@ -160,6 +165,10 @@ class SKDashboard(App):
         border: solid #FFD700;
     }
 
+    #notebook-pane {
+        border: solid #00FF00;
+    }
+
     .pane-title {
         text-align: center;
         background: #00FFFF;
@@ -175,6 +184,11 @@ class SKDashboard(App):
 
     .edu-title {
         background: #FFD700;
+        color: #000000;
+    }
+
+    .notebook-title {
+        background: #00FF00;
         color: #000000;
     }
 
@@ -230,7 +244,7 @@ class SKDashboard(App):
         Binding("esc", "quit", "Return to Console"),
         Binding("1", "focus_pane('status')", "Status"),
         Binding("2", "focus_pane('center')", "Brain/IO"),
-        Binding("3", "focus_pane('right')", "Tree/Edu"),
+        Binding("3", "focus_pane('right')", "Tree/Notebook/Edu"),
         Binding("t", "toggle_telemetry", "Telemetry"),
         Binding("c", "copy_winning_exploit", "Copy Exploit"),
         Binding("0", "reset_layout", "Reset View"),
@@ -276,18 +290,21 @@ class SKDashboard(App):
                 
                 # CENTER: Logs & Brain
                 with Vertical(id="center-stack"):
-                    with Vertical(id="logs-pane", classes="pane sub-pane"):
+                    with Vertical(id="logs-pane", classes="pane sub-pane-half"):
                         yield Label("IO TRAFFIC (RAW)", classes="pane-title")
                         yield RichLog(id="agent-log", highlight=True, markup=True, wrap=True)
-                    with Vertical(id="brain-pane", classes="pane sub-pane"):
+                    with Vertical(id="brain-pane", classes="pane sub-pane-half"):
                         yield Label("ATTACKER BRAIN (THOUGHTS)", classes="pane-title brain-title")
                         yield RichLog(id="brain-log", markup=True, wrap=True)
                 
-                # RIGHT: Tree & Education
+                # RIGHT: Tree, Notebook, Education
                 with Vertical(id="right-stack"):
                     with Vertical(id="threat-pane", classes="pane sub-pane"):
                         yield Label("ATTACK TREE", classes="pane-title")
                         yield Tree("Attack Root", id="threat-tree")
+                    with Vertical(id="notebook-pane", classes="pane sub-pane"):
+                        yield Label("EXPLOIT NOTEBOOK", classes="pane-title notebook-title")
+                        yield RichLog(id="notebook-log", markup=True, wrap=True)
                     with Vertical(id="education-pane", classes="pane sub-pane"):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
                         yield RichLog(id="edu-log", markup=True, wrap=True)
@@ -304,6 +321,7 @@ class SKDashboard(App):
     def on_mount(self) -> None:
         self.log_to_pane("agent-log", f"[bold green]>>> I/O SUBSYSTEM ONLINE[/bold green]")
         self.log_to_pane("brain-log", f"[bold green]>>> COGNITIVE ENGINE ONLINE[/bold green]")
+        self.log_to_pane("notebook-log", f"[bold green]>>> EXPLOIT NOTEBOOK ACTIVE[/bold green]")
         self.telemetry_log(f"[bold green]>>> TELEMETRY HUB INITIALIZED[/bold green]")
         
         # Setup initial tree
@@ -468,15 +486,16 @@ class SKDashboard(App):
         turn = event.data.get("turn")
         response = event.data.get("response")
         score_data = event.data.get("score", {})
-        result_str = str(score_data.get("result", "unknown"))
+        result_str = str(score_data.get("result", "unknown")).lower()
         remediation = score_data.get("remediation", "")
         latency = event.data.get('latency_ms', 0)
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         
         self.telemetry_log(f"[yellow]TARGET_RESP[/yellow] -> {result_str.upper()} ({latency}ms)")
         
-        is_success = (result_str.lower() == "success")
-        is_failure = (result_str.lower() == "failure")
+        # ROBUST SUCCESS CHECK
+        is_success = "success" in result_str
+        is_failure = "failure" in result_str
         res_color = "green" if is_success else "yellow" if not is_failure else "red"
         
         self.log_to_pane("agent-log", f"[bold {res_color}]Target Responded ({result_str.upper()}):[/bold {res_color}]")
@@ -488,14 +507,19 @@ class SKDashboard(App):
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
             
-            # ─── REPRODUCTION SNIPPET IN STATUS PANE ───
+            # Show Winning Exploit clearly
+            self.query_one("#lbl-secret").update(f"\n[bold red]Exploit SUCCESS![/bold red]\n[dim]See Notebook[/dim]")
+
+            # ─── REPRODUCTION SNIPPET IN NOTEBOOK ───
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
             model = self.engine_kwargs.get("model", "phi3")
             escaped_payload = self.winning_payload.replace("'", "'\\''").replace("\n", " ")
             self.reproduction_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{\"role\": \"user\", \"content\": \"{escaped_payload}\"}}]}}'"
             
-            self.query_one("#lbl-secret").update(f"\n[bold red]Exploit Reproduction:[/bold red]\n[dim]{self.reproduction_cmd[:150]}...[/dim]")
-            self.log_to_pane("edu-log", f"\n[bold green]FULL REPRODUCTION CMD (Copy via 'c'):[/bold green]\n[dim]{self.reproduction_cmd}[/dim]")
+            self.log_to_pane("notebook-log", f"\n[bold green]>>> SUCCESSFUL EXPLOIT (Turn {turn})[/bold green]")
+            self.log_to_pane("notebook-log", f"[bold cyan]Payload:[/bold cyan]\n{self.winning_payload}")
+            self.log_to_pane("notebook-log", f"[bold yellow]Reproduction:[/bold yellow]\n{self.reproduction_cmd}")
+            
             self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
         if remediation:
@@ -518,7 +542,6 @@ class SKDashboard(App):
         if not user_text: return
         self.query_one("#shell-input", Input).value = ""
 
-        # ─── Command Handling ───
         cmd = user_text.lower().strip()
         if cmd in ["exit", "quit", "/exit"]:
             self.exit()
@@ -541,20 +564,16 @@ class SKDashboard(App):
             await self.pivot_exploit(module_name)
             return
 
-        # ─── Default: Interaction ───
         self.telemetry_log(f"[bold green]USER_SHELL_CMD[/bold green] -> {user_text[:20]}...")
         self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
         await self.communicate_with_target(user_text)
 
     async def communicate_with_target(self, prompt: str):
-        """Helper to send prompt to LLM while maintaining history."""
         client = LLMClient()
         provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
             
         req = LLMRequest(
-            prompt=prompt, 
-            provider=provider, 
-            model=model,
+            prompt=prompt, provider=provider, model=model,
             messages=self.session_history,
             base_url=self.engine_kwargs.get("base_url"), 
             api_key=self.engine_kwargs.get("api_key")
@@ -569,47 +588,35 @@ class SKDashboard(App):
             self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
             self.telemetry_log(f"[bold green]SHELL_SUCCESS[/bold green] ({latency}ms)")
             
-            # Update history
             self.session_history.append({"role": "user", "content": prompt})
             self.session_history.append({"role": "assistant", "content": resp.content})
             
-            # Update UI Status
             self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{latency}ms")
         except Exception as e:
             self.log_to_pane("agent-log", f"[bold red]ERROR:[/bold red] {str(e)}")
             self.telemetry_log(f"[bold red]SHELL_ERROR[/bold red] -> {str(e)}")
 
     async def pivot_exploit(self, module_name: str):
-        """Execute a secondary module's payloads through the established session."""
         try:
             module = self.engine.get_module(module_name)
             payloads = module.get_payloads()
-            
             self.pivot_count += 1
-            # Note: we don't update self.module_name permanently to preserve original session intent
             
-            # ─── UPDATE ALL PANES FOR PIVOT ───
             self.query_one("#lbl-module").update(f"[bold cyan]Module (PIVOT):[/bold cyan]\n{module_name}")
             self.log_to_pane("agent-log", f"\n[bold yellow]>>> PIVOTING: Executing {module_name} payloads...[/bold yellow]")
             self.log_to_pane("brain-log", f"\n[bold magenta]Pivot Strategy:[/bold magenta]\nRunning {module_name} vectors through established context.")
             self.telemetry_log(f"[bold yellow]PIVOT_START[/bold yellow] -> {module_name}")
 
-            # Start new Tree Branch
             tree = self.query_one("#threat-tree", Tree)
             pivot_root = tree.root.add(f"[bold magenta]Pivot {self.pivot_count}:[/bold magenta] {module_name}", expand=True)
 
             for i, p in enumerate(payloads):
-                self.winning_payload = p # Track current for winning exploit mirror
+                self.winning_payload = p
                 self.query_one("#lbl-payload").update(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]{p[:100]}...[/dim]")
-                self.telemetry_log(f"[cyan]PIVOT_VECTOR[/cyan] -> {i+1}/{len(payloads)}")
-                
-                # Update Tree
                 self.last_turn_node = pivot_root.add(f"[bold yellow]Vector {i+1}:[/bold yellow] Attempt", expand=True)
                 
-                # Execute
                 self.log_to_pane("agent-log", f"\n[bold cyan]Vector {i+1}:[/bold cyan] {p[:100]}...")
                 
-                # We reuse communicate_with_target but we need the response for scoring
                 client = LLMClient()
                 provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
                 req = LLMRequest(
@@ -620,35 +627,27 @@ class SKDashboard(App):
                 resp = await client.send(req)
                 self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
                 
-                # ─── REAL-TIME SCORING ───
                 score = module.scorer.score(response_text=resp.content, attack_payload=p)
-                result_str = score.result.value
-                res_color = "green" if result_str == "success" else "yellow" if result_str == "partial" else "red"
+                result_str = score.result.value.lower()
+                res_color = "green" if "success" in result_str else "yellow" if "partial" in result_str else "red"
                 
-                # Update Tree with Score
                 self.last_turn_node.add(f"[bold {res_color}]Response ({result_str})[/bold {res_color}]")
-                
-                # Update Education Pane
-                if score.remediation:
-                    self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Pivot {i+1}):[/bold {res_color}]")
-                    self.log_to_pane("edu-log", f"{score.remediation}")
+                if "success" in result_str:
+                    self.log_to_pane("notebook-log", f"\n[bold green]>>> PIVOT SUCCESS: {module_name} (Vector {i+1})[/bold green]")
+                    self.log_to_pane("notebook-log", f"[bold cyan]Payload:[/bold cyan]\n{p}")
 
-                # Update History
                 self.session_history.append({"role": "user", "content": p})
                 self.session_history.append({"role": "assistant", "content": resp.content})
-                
-                await asyncio.sleep(1) # Visual pacing
+                await asyncio.sleep(1)
 
             self.telemetry_log(f"[bold green]PIVOT_COMPLETE[/bold green] -> {module_name}")
 
         except Exception as e:
             self.log_to_pane("agent-log", f"[bold red]PIVOT FAILED:[/bold red] {str(e)}")
-            self.telemetry_log(f"[bold red]PIVOT_ERROR[/bold red] -> {str(e)}")
 
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.session_history = event.data.get("history", [])
-        
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.telemetry_log("[bold green]ATTACK_ORCHESTRATION_COMPLETE[/bold green]")
         
