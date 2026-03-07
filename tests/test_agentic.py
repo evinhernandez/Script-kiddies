@@ -24,7 +24,7 @@ class TestAgenticExecution(unittest.IsolatedAsyncioTestCase):
             ]
 
             result = await self.engine.run_module(
-                module_name="agentic_prompt_extraction",
+                module_name="extraction.agentic.prompt",
                 target_provider="openai",
                 target_model="gpt-4o",
                 expected_flag="SK-ALPHA-99",
@@ -50,7 +50,7 @@ class TestAgenticExecution(unittest.IsolatedAsyncioTestCase):
             mock_send.side_effect = responses
 
             result = await self.engine.run_module(
-                module_name="agentic_prompt_extraction",
+                module_name="extraction.agentic.prompt",
                 target_provider="openai",
                 target_model="gpt-4o",
                 max_turns=3
