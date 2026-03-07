@@ -7,6 +7,7 @@ import random
 import asyncio
 import json
 import time
+import pyperclip
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -204,6 +205,7 @@ class SKDashboard(App):
         Binding("2", "focus_pane('center')", "Brain/IO"),
         Binding("3", "focus_pane('right')", "Tree/Edu"),
         Binding("t", "toggle_telemetry", "Telemetry"),
+        Binding("c", "copy_winning_exploit", "Copy Exploit"),
         Binding("0", "reset_layout", "Reset View"),
     ]
 
@@ -221,6 +223,7 @@ class SKDashboard(App):
         self.engine = SKEngine()
         self.pivot_count = 0
         self.telemetry_history = []
+        self.reproduction_cmd = ""
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -314,6 +317,20 @@ class SKDashboard(App):
         """Switch to telemetry screen."""
         self.push_screen(TelemetryScreen(history=self.telemetry_history))
 
+    def action_copy_winning_exploit(self) -> None:
+        """Copy the current or winning exploit to system clipboard."""
+        to_copy = ""
+        if self.winning_payload:
+            to_copy = f"EXPLOIT PAYLOAD:\n{self.winning_payload}"
+            if self.reproduction_cmd:
+                to_copy += f"\n\nREPRODUCTION COMMAND:\n{self.reproduction_cmd}"
+            
+            pyperclip.copy(to_copy)
+            self.log_to_pane("agent-log", "\n[bold green]>>> COPIED EXPLOIT TO CLIPBOARD[/bold green]")
+            self.telemetry_log("CLIPBOARD_COPY -> Success")
+        else:
+            self.log_to_pane("agent-log", "\n[bold yellow]>>> NOTHING TO COPY YET[/bold yellow]")
+
     def action_reset_layout(self) -> None:
         """Reset layout to multi-pane view."""
         self.is_zoomed = False
@@ -338,13 +355,11 @@ class SKDashboard(App):
         line = f"[{timestamp}] {message}"
         self.telemetry_history.append(line)
         
-        # If the telemetry screen is active, write to it
         try:
             self.query_one("#telemetry-log-full", RichLog).write(line)
         except Exception:
             pass
             
-        # Also log to main raw IO for visibility
         self.log_to_pane("agent-log", f"[dim][{timestamp}] TELEMETRY: {message}[/dim]")
 
     async def execute_engine(self):
@@ -447,12 +462,11 @@ class SKDashboard(App):
             # Educational Tracing (Reproduction)
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
             model = self.engine_kwargs.get("model", "phi3")
-            # Create a real curl command with the winning payload
             escaped_payload = self.winning_payload.replace("'", "'\\''")
-            curl_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{\"role\": \"user\", \"content\": \"{escaped_payload}\"}}]}}'"
+            self.reproduction_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{\"role\": \"user\", \"content\": \"{escaped_payload}\"}}]}}'"
             
             self.log_to_pane("edu-log", f"\n[bold green]REPRODUCTION STEPS:[/bold green]")
-            self.log_to_pane("edu-log", f"[dim]{curl_cmd}[/dim]")
+            self.log_to_pane("edu-log", f"[dim]{self.reproduction_cmd}[/dim]")
             self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
         if remediation:
