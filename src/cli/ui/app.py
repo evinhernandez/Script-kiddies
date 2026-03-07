@@ -6,6 +6,7 @@ Full-screen TUI for real-time attack monitoring using Textual.
 import random
 import asyncio
 import json
+import time
 from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -89,11 +90,11 @@ class SKDashboard(App):
     }
 
     #status-pane {
-        width: 25%;
+        width: 20%;
     }
 
     #center-stack {
-        width: 45%;
+        width: 50%;
     }
 
     #right-stack {
@@ -143,6 +144,13 @@ class SKDashboard(App):
         content-align: center middle;
     }
 
+    #telemetry-container {
+        height: 5;
+        border: solid #00FF00;
+        background: #001100;
+        margin-top: 1;
+    }
+
     #shell-container {
         display: none;
         height: 3;
@@ -179,6 +187,7 @@ class SKDashboard(App):
         Binding("1", "focus_pane('status')", "Status"),
         Binding("2", "focus_pane('center')", "Brain/IO"),
         Binding("3", "focus_pane('right')", "Tree/Edu"),
+        Binding("4", "focus_pane('telemetry')", "Telemetry"),
         Binding("0", "reset_layout", "Reset View"),
     ]
 
@@ -194,11 +203,12 @@ class SKDashboard(App):
         self.winning_payload = None
         self.session_history = []
         self.engine = SKEngine()
+        self.pivot_count = 0
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Container(id="main-container"):
-            with Horizontal():
+            with Horizontal(height="70%"):
                 # LEFT: Status
                 with Vertical(id="status-pane", classes="pane"):
                     yield Label("TARGET STATUS", classes="pane-title")
@@ -233,7 +243,11 @@ class SKDashboard(App):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
                         yield RichLog(id="edu-log", markup=True, wrap=True)
             
-            with Horizontal(id="shell-container"):
+            with Vertical(id="telemetry-stack", height="20%"):
+                yield Label("[bold green]SYSTEM TELEMETRY (LIVE TAIL)[/bold green]", classes="pane-title")
+                yield RichLog(id="telemetry-log", markup=True, wrap=True, highlight=True)
+
+            with Horizontal(id="shell-container", height="10%"):
                 yield Label("[bold green]SESSION_SHELL $> [/bold green]")
                 yield Input(placeholder="Type follow-up command or /run <module>...", id="shell-input")
         yield Footer()
@@ -241,6 +255,7 @@ class SKDashboard(App):
     def on_mount(self) -> None:
         self.log_to_pane("agent-log", f"[bold green]>>> I/O SUBSYSTEM ONLINE[/bold green]")
         self.log_to_pane("brain-log", f"[bold green]>>> COGNITIVE ENGINE ONLINE[/bold green]")
+        self.telemetry_log(f"[bold green]>>> TELEMETRY HUB INITIALIZED[/bold green]")
         
         # Setup initial tree
         tree = self.query_one("#threat-tree", Tree)
@@ -267,8 +282,9 @@ class SKDashboard(App):
         status = self.query_one("#status-pane")
         center = self.query_one("#center-stack")
         right = self.query_one("#right-stack")
+        telemetry = self.query_one("#telemetry-stack")
 
-        for p in [status, center, right]:
+        for p in [status, center, right, telemetry]:
             p.set_class(False, "zoomed")
             p.set_class(True, "hidden")
 
@@ -281,15 +297,19 @@ class SKDashboard(App):
         elif pane_type == "right":
             right.set_class(True, "zoomed")
             right.set_class(False, "hidden")
+        elif pane_type == "telemetry":
+            telemetry.set_class(True, "zoomed")
+            telemetry.set_class(False, "hidden")
 
     def action_reset_layout(self) -> None:
-        """Reset layout to 3-pane view."""
+        """Reset layout to multi-pane view."""
         self.is_zoomed = False
         status = self.query_one("#status-pane")
         center = self.query_one("#center-stack")
         right = self.query_one("#right-stack")
+        telemetry = self.query_one("#telemetry-stack")
 
-        for p in [status, center, right]:
+        for p in [status, center, right, telemetry]:
             p.set_class(False, "hidden")
             p.set_class(False, "zoomed")
 
@@ -299,6 +319,11 @@ class SKDashboard(App):
             self.query_one(f"#{pane_id}", RichLog).write(message)
         except Exception:
             pass
+
+    def telemetry_log(self, message: str):
+        """Helper for telemetry pane."""
+        timestamp = time.strftime("%H:%M:%S")
+        self.log_to_pane("telemetry-log", f"[{timestamp}] {message}")
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
@@ -320,6 +345,7 @@ class SKDashboard(App):
             color = "green" if status == "SUCCESS" else "red"
             
             self.log_to_pane("agent-log", f"\n[bold {color}]>>> SESSION TERMINATED: {status}[/bold {color}]")
+            self.telemetry_log(f"[bold {color}]ENGINE_STOP -> {status}[/bold {color}]")
             
             if status == "SUCCESS":
                 self.is_compromised = True
@@ -334,6 +360,7 @@ class SKDashboard(App):
             import traceback
             error_details = traceback.format_exc()
             self.log_to_pane("agent-log", f"\n[bold red]>>> CORE ENGINE CRASH:[/bold red] {str(e)}")
+            self.telemetry_log(f"[bold red]ENGINE_CRASH -> {str(e)}[/bold red]")
             self.log_to_pane("agent-log", f"[dim]{error_details}[/dim]")
             self.query_one("#lbl-hacking").update("\n[bold red]ENGINE CRASHED[/bold red]")
 
@@ -354,6 +381,9 @@ class SKDashboard(App):
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.winning_payload = payload
         
+        self.telemetry_log(f"[cyan]PAYLOAD_SENT[/cyan] -> Turn {turn} ({len(payload)} chars)")
+        
+        # Route to Logs
         self.log_to_pane("agent-log", f"\n[bold magenta]— TURN {turn} —[/bold magenta]")
         self.log_to_pane("agent-log", f"[bold cyan]Payload fired:[/bold cyan] {payload[:300]}")
         self.log_to_pane("brain-log", f"\n[bold magenta]Turn {turn} Rationale:[/bold magenta]")
@@ -371,7 +401,10 @@ class SKDashboard(App):
         score_data = event.data.get("score", {})
         result_str = str(score_data.get("result", "unknown"))
         remediation = score_data.get("remediation", "")
+        latency = event.data.get('latency_ms', 0)
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
+        
+        self.telemetry_log(f"[yellow]TARGET_RESP[/yellow] -> {result_str.upper()} ({latency}ms)")
         
         is_success = (result_str.lower() == "success")
         is_failure = (result_str.lower() == "failure")
@@ -385,7 +418,6 @@ class SKDashboard(App):
             banner = self.query_one("#pwnd-banner")
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
-            
             self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{self.winning_payload}[/bold white]")
 
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
@@ -405,22 +437,9 @@ class SKDashboard(App):
             for signal in score_data.get("signals", []):
                 resp_node.add(f"[dim]{signal}[/dim]")
         
-        self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{event.data.get('latency_ms', 0)}ms")
+        self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{latency}ms")
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
-
-    def on_attack_complete(self, event: AttackComplete) -> None:
-        self.total_tokens = event.data.get("total_tokens", self.total_tokens)
-        self.session_history = event.data.get("history", []) # Capture history for shell
-        
-        self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
-        
-        spinner = self.query_one("#loading-spinner")
-        if spinner: spinner.styles.display = "none"
-        self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
-        
-        quote = random.choice(HACKER_QUOTES)
-        self.log_to_pane("brain-log", f"\n[italic cyan]\"{quote}\"[/italic cyan]")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle manual interaction in the Virtual Shell."""
@@ -443,6 +462,7 @@ class SKDashboard(App):
 
         if cmd == "/clear":
             self.query_one("#agent-log", RichLog).clear()
+            self.telemetry_log("[dim]IO Log Cleared.[/dim]")
             return
 
         if cmd.startswith("/run "):
@@ -451,6 +471,7 @@ class SKDashboard(App):
             return
 
         # ─── Default: Interaction ───
+        self.telemetry_log(f"[bold green]USER_SHELL_CMD[/bold green] -> {user_text[:20]}...")
         self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
         await self.communicate_with_target(user_text)
 
@@ -470,13 +491,22 @@ class SKDashboard(App):
         
         self.log_to_pane("agent-log", "[dim]Communicating...[/dim]")
         try:
+            start_time = time.perf_counter()
             resp = await client.send(req)
+            latency = int((time.perf_counter() - start_time) * 1000)
+            
             self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
+            self.telemetry_log(f"[bold green]SHELL_SUCCESS[/bold green] ({latency}ms)")
+            
             # Update history
             self.session_history.append({"role": "user", "content": prompt})
             self.session_history.append({"role": "assistant", "content": resp.content})
+            
+            # Update UI Status
+            self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{latency}ms")
         except Exception as e:
             self.log_to_pane("agent-log", f"[bold red]ERROR:[/bold red] {str(e)}")
+            self.telemetry_log(f"[bold red]SHELL_ERROR[/bold red] -> {str(e)}")
 
     async def pivot_exploit(self, module_name: str):
         """Execute a secondary module's payloads through the established session."""
@@ -484,16 +514,80 @@ class SKDashboard(App):
             module = self.engine.get_module(module_name)
             payloads = module.get_payloads()
             
+            self.pivot_count += 1
+            self.module_name = module_name
+            
+            # ─── UPDATE ALL PANES FOR PIVOT ───
+            self.query_one("#lbl-module").update(f"[bold cyan]Module (PIVOT):[/bold cyan]\n{module_name}")
             self.log_to_pane("agent-log", f"\n[bold yellow]>>> PIVOTING: Executing {module_name} payloads...[/bold yellow]")
             self.log_to_pane("brain-log", f"\n[bold magenta]Pivot Strategy:[/bold magenta]\nRunning {module_name} vectors through established context.")
+            self.telemetry_log(f"[bold yellow]PIVOT_START[/bold yellow] -> {module_name}")
+
+            # Start new Tree Branch
+            tree = self.query_one("#threat-tree", Tree)
+            pivot_root = tree.root.add(f"[bold magenta]Pivot {self.pivot_count}:[/bold magenta] {module_name}", expand=True)
 
             for i, p in enumerate(payloads):
+                self.winning_payload = p
+                self.query_one("#lbl-payload").update(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]{p[:100]}...[/dim]")
+                self.telemetry_log(f"[cyan]PIVOT_VECTOR[/cyan] -> {i+1}/{len(payloads)}")
+                
+                # Update Tree
+                self.last_turn_node = pivot_root.add(f"[bold yellow]Vector {i+1}:[/bold yellow] Attempt", expand=True)
+                
+                # Execute
                 self.log_to_pane("agent-log", f"\n[bold cyan]Vector {i+1}:[/bold cyan] {p[:100]}...")
-                await self.communicate_with_target(p)
+                
+                # We reuse communicate_with_target but we need the response for scoring
+                client = LLMClient()
+                provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
+                req = LLMRequest(
+                    prompt=p, provider=provider, model=model, messages=self.session_history,
+                    base_url=self.engine_kwargs.get("base_url"), api_key=self.engine_kwargs.get("api_key")
+                )
+                
+                resp = await client.send(req)
+                self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
+                
+                # ─── REAL-TIME SCORING ───
+                score = module.scorer.score(response_text=resp.content, attack_payload=p)
+                result_str = score.result.value
+                res_color = "green" if result_str == "success" else "yellow" if result_str == "partial" else "red"
+                
+                # Update Tree with Score
+                icon = "✅" if result_str == "success" else "❌" if result_str == "failure" else "⚠️"
+                self.last_turn_node.add(f"{icon} [bold {res_color}]Response ({result_str})[/bold {res_color}]")
+                
+                # Update Education Pane
+                if score.remediation:
+                    self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Pivot {i+1}):[/bold {res_color}]")
+                    self.log_to_pane("edu-log", f"{score.remediation}")
+
+                # Update History
+                self.session_history.append({"role": "user", "content": p})
+                self.session_history.append({"role": "assistant", "content": resp.content})
+                
                 await asyncio.sleep(1) # Visual pacing
+
+            self.telemetry_log(f"[bold green]PIVOT_COMPLETE[/bold green] -> {module_name}")
 
         except Exception as e:
             self.log_to_pane("agent-log", f"[bold red]PIVOT FAILED:[/bold red] {str(e)}")
+            self.telemetry_log(f"[bold red]PIVOT_ERROR[/bold red] -> {str(e)}")
+
+    def on_attack_complete(self, event: AttackComplete) -> None:
+        self.total_tokens = event.data.get("total_tokens", self.total_tokens)
+        self.session_history = event.data.get("history", [])
+        
+        self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
+        self.telemetry_log("[bold green]ATTACK_ORCHESTRATION_COMPLETE[/bold green]")
+        
+        spinner = self.query_one("#loading-spinner")
+        if spinner: spinner.styles.display = "none"
+        self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
+        
+        quote = random.choice(HACKER_QUOTES)
+        self.log_to_pane("brain-log", f"\n[italic cyan]\"{quote}\"[/italic cyan]")
 
 if __name__ == "__main__":
     app = SKDashboard("prompt_injection", "openai/gpt-4o")
