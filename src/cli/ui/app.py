@@ -90,6 +90,10 @@ class SKDashboard(App):
     """
     Main dashboard for SK Framework attacks.
     """
+    # This ensures mouse events pass through to the underlying terminal emulator 
+    # for standard highlighting/copying if the emulator supports it.
+    ENABLE_COMMAND_PALETTE = False
+    
     CSS = """
     Screen {
         background: #000000;
