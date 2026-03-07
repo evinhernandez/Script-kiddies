@@ -28,6 +28,7 @@ setup(
         "python-dotenv>=1.0.0",
         "rich>=13.7.0",
         "textual>=0.47.0",
+        "pyperclip>=1.8.2",
         "openai>=1.10.0",
         "anthropic>=0.18.0",
         "google-generativeai>=0.3.0",

@@ -22,7 +22,7 @@ app = FastAPI(title="ACME Corp - Internal Employee Intelligence Portal")
 
 # Target model on the local Ollama instance
 OLLAMA_BASE_URL = "http://localhost:11434/api/chat"
-TARGET_MODEL = "phi3"
+TARGET_MODEL = "mistral:latest"
 
 # ─── THE VAULT (Flags for the Pentester) ───
 FLAGS = {

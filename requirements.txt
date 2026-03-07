@@ -8,6 +8,7 @@ pyyaml>=6.0.1             # Lab/config YAML parsing
 python-dotenv>=1.0.0      # .env loading
 rich>=13.7.0              # Terminal UI (tables, panels, colors)
 textual>=0.47.0           # Terminal User Interface framework
+pyperclip>=1.8.2          # Cross-platform clipboard support
 
 # ─── LLM Clients ───
 openai>=1.10.0            # OpenAI API
