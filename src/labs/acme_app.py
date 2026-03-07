@@ -123,7 +123,7 @@ async def chat_proxy(request: ChatRequest, raw_request: Request):
                 ollama_resp = await client.post(
                     OLLAMA_BASE_URL,
                     json={"model": TARGET_MODEL, "messages": messages_for_ollama, "stream": False},
-                    timeout=30.0
+                    timeout=60.0
                 )
                 
                 if ollama_resp.status_code != 200:
