@@ -34,3 +34,14 @@
 - **Root Cause**: A blind string replacement of the letter `m` in ANSI color codes was accidentally matching characters in the module names themselves.
 - **Solution**: Used a precise regular expression to wrap only the ANSI escape sequences with readline ignore characters (`\001` and `\002`).
 - **Prevention**: Never perform global string replacements on strings containing both UI text and ANSI control codes.
+
+## 2026-03-07 - Forensic Telemetry Crash
+- **Issue**: `TypeError: Object of type ScoringStatus is not JSON serializable`
+- **Root Cause**: Attempted to `json.dumps` a dictionary containing a `ScoringStatus` Enum member in the `telemetry_log` method.
+- **Solution**: Added `default=str` to the `json.dumps` call to safely handle non-serializable objects.
+- **Prevention**: Use a custom JSON encoder or `default=str` when logging complex internal objects to telemetry.
+
+## 2026-03-07 - Lateral Pivot Type Error
+- **Issue**: `TypeError: BaseModule._send_and_score() got an unexpected keyword argument 'messages'`
+- **Root Cause**: The end-to-end audit script attempted to pass conversation history to a method that didn't support it directly.
+- **Solution**: Refactored the audit script to use the proper `run()` interface which supports history injection for pivoting.

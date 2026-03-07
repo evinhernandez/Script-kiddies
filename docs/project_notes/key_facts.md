@@ -4,8 +4,8 @@
 
 **Services:**
 - **Ollama**: `http://localhost:11434` (Open-Source LLM Host)
-- **AI Goat**: `http://localhost:8080` (OWASP Vulnerable-by-Design App)
 - **ACME Corp App**: `http://localhost:8002` (Custom "Vulnerability Buffet" Lab)
+- **Vulnerable PoC**: `http://localhost:8001` (Base prompt extraction target)
 
 **Database:**
 - Path: `./data/sk_sessions.db` (SQLite)
@@ -14,6 +14,7 @@
 ## 🏗️ Architecture Constants
 
 - **Python Version**: 3.11+ (Required for Pydantic v2 and Textual)
+- **Mascot**: The Script-Kiddie Gorilla 🦍
 - **Gateway**: LiteLLM (Async implementation in `src/utils/llm_client.py`)
 - **TUI**: Textual (Styles defined in `src/cli/ui/app.py`)
 - **Persistence**: SQLAlchemy 2.0+ (using `extra_metadata` column for Pydantic blobs)
@@ -38,6 +39,7 @@
 
 ## 🧪 Verified Attack Chains
 
-- **Prompt Injection**: Confirmed against Llama 3 and Mistral.
+- **Prompt Injection**: Confirmed against Llama 3, Mistral, and Phi-3.
 - **System Prompt Extraction**: Verified against ACME Corp internal portal.
 - **Jailbreak**: Verified via 'DAN' persona adoption logic.
+- **Lateral Pivot**: Verified extraction -> exfiltration chain in one session.

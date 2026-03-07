@@ -39,3 +39,11 @@
 - ✅ Real-time interaction with cracked models.
 - ✅ Lateral movement support via `/run <module>` within the same session.
 - ✅ Eliminates the need to restart the entire attack chain for follow-up questions.
+
+### ADR-006: Exploit Notebook & Forensic Telemetry (2026-03-07)
+**Context**: Operators need a way to track successful payloads and troubleshoot failures with JSON-level precision.
+**Decision**: Implement a dedicated **Exploit Notebook** pane and a **Forensic Telemetry** screen.
+**Consequences**:
+- ✅ Automatic capture of successful payloads and `curl` reproduction steps.
+- ✅ High-fidelity "Black Box" recording of every LLM request/response JSON blob.
+- ✅ Instant manual verification capability via the Notebook.
