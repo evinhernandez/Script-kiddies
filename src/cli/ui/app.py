@@ -12,6 +12,7 @@ from typing import Any, Optional
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, RichLog, Label, Tree, LoadingIndicator, Input
+from textual.suggester import Suggester
 from textual.binding import Binding
 from textual.message import Message
 from textual.screen import Screen
@@ -64,6 +65,30 @@ class AttackComplete(EngineEvent):
     """Sent when the attack module finishes."""
     pass
 
+class ShellSuggester(Suggester):
+    """Provides tab completion for the session shell."""
+    def __init__(self, modules: list[str]):
+        super().__init__(use_cache=False)
+        self.modules = modules
+        self.cmds = ["/run ", "/help", "/clear", "exit", "quit"]
+
+    async def get_suggestion(self, value: str) -> Optional[str]:
+        if not value: return None
+        
+        # Command completion
+        for cmd in self.cmds:
+            if cmd.startswith(value.lower()):
+                return cmd
+        
+        # Module completion for /run
+        if value.lower().startswith("/run "):
+            typed_mod = value[5:]
+            for mod in self.modules:
+                if mod.startswith(typed_mod):
+                    return f"/run {mod}"
+        
+        return None
+
 class TelemetryScreen(Screen):
     """A secondary screen for live tailing system activity."""
     def __init__(self, history: list[str]):
@@ -90,8 +115,6 @@ class SKDashboard(App):
     """
     Main dashboard for SK Framework attacks.
     """
-    # This ensures mouse events pass through to the underlying terminal emulator 
-    # for standard highlighting/copying if the emulator supports it.
     ENABLE_COMMAND_PALETTE = False
     
     CSS = """
@@ -230,6 +253,8 @@ class SKDashboard(App):
         self.reproduction_cmd = ""
 
     def compose(self) -> ComposeResult:
+        modules = [m.name for m in self.engine.list_modules()]
+        
         yield Header(show_clock=True)
         with Container(id="main-container"):
             with Horizontal():
@@ -269,7 +294,11 @@ class SKDashboard(App):
             
             with Horizontal(id="shell-container"):
                 yield Label("[bold green]SESSION_SHELL $> [/bold green]")
-                yield Input(placeholder="Type follow-up command or /run <module>...", id="shell-input")
+                yield Input(
+                    placeholder="Type follow-up command or /run <module>...", 
+                    id="shell-input",
+                    suggester=ShellSuggester(modules)
+                )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -390,7 +419,6 @@ class SKDashboard(App):
             
             if status == "SUCCESS":
                 self.is_compromised = True
-                # Show Shell
                 shell = self.query_one("#shell-container")
                 shell.styles.display = "block"
                 self.query_one("#shell-input").focus()
@@ -460,17 +488,14 @@ class SKDashboard(App):
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
             
-            # Show Winning Exploit clearly
-            self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{self.winning_payload}[/bold white]")
-
-            # Educational Tracing (Reproduction)
+            # ─── REPRODUCTION SNIPPET IN STATUS PANE ───
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
             model = self.engine_kwargs.get("model", "phi3")
-            escaped_payload = self.winning_payload.replace("'", "'\\''")
+            escaped_payload = self.winning_payload.replace("'", "'\\''").replace("\n", " ")
             self.reproduction_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{\"role\": \"user\", \"content\": \"{escaped_payload}\"}}]}}'"
             
-            self.log_to_pane("edu-log", f"\n[bold green]REPRODUCTION STEPS:[/bold green]")
-            self.log_to_pane("edu-log", f"[dim]{self.reproduction_cmd}[/dim]")
+            self.query_one("#lbl-secret").update(f"\n[bold red]Exploit Reproduction:[/bold red]\n[dim]{self.reproduction_cmd[:150]}...[/dim]")
+            self.log_to_pane("edu-log", f"\n[bold green]FULL REPRODUCTION CMD (Copy via 'c'):[/bold green]\n[dim]{self.reproduction_cmd}[/dim]")
             self.log_to_pane("edu-log", "\n[bold red]CRITICAL: TARGET COMPROMISED[/bold red]")
 
         if remediation:
