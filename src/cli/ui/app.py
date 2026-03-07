@@ -13,6 +13,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, RichLog, Label, Tree, LoadingIndicator, Input
 from textual.binding import Binding
 from textual.message import Message
+from textual.screen import Screen
 from rich.tree import Tree as RichTree
 from rich.panel import Panel
 from rich.text import Text
@@ -62,6 +63,19 @@ class AttackComplete(EngineEvent):
     """Sent when the attack module finishes."""
     pass
 
+class TelemetryScreen(Screen):
+    """A secondary screen for live tailing system activity."""
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Label("[bold green]SYSTEM TELEMETRY (LIVE TAIL)[/bold green]", classes="pane-title")
+        yield RichLog(id="telemetry-log-full", markup=True, wrap=True, highlight=True)
+        yield Footer()
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back to Dashboard"),
+        Binding("t", "app.pop_screen", "Back to Dashboard"),
+    ]
+
 class SKDashboard(App):
     """
     Main dashboard for SK Framework attacks.
@@ -90,11 +104,11 @@ class SKDashboard(App):
     }
 
     #status-pane {
-        width: 20%;
+        width: 25%;
     }
 
     #center-stack {
-        width: 50%;
+        width: 45%;
     }
 
     #right-stack {
@@ -144,13 +158,6 @@ class SKDashboard(App):
         content-align: center middle;
     }
 
-    #telemetry-container {
-        height: 5;
-        border: solid #00FF00;
-        background: #001100;
-        margin-top: 1;
-    }
-
     #shell-container {
         display: none;
         height: 3;
@@ -187,7 +194,7 @@ class SKDashboard(App):
         Binding("1", "focus_pane('status')", "Status"),
         Binding("2", "focus_pane('center')", "Brain/IO"),
         Binding("3", "focus_pane('right')", "Tree/Edu"),
-        Binding("4", "focus_pane('telemetry')", "Telemetry"),
+        Binding("t", "toggle_telemetry", "Telemetry"),
         Binding("0", "reset_layout", "Reset View"),
     ]
 
@@ -208,7 +215,7 @@ class SKDashboard(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Container(id="main-container"):
-            with Horizontal(height="70%"):
+            with Horizontal():
                 # LEFT: Status
                 with Vertical(id="status-pane", classes="pane"):
                     yield Label("TARGET STATUS", classes="pane-title")
@@ -243,11 +250,7 @@ class SKDashboard(App):
                         yield Label("EDUCATIONAL TRACING", classes="pane-title edu-title")
                         yield RichLog(id="edu-log", markup=True, wrap=True)
             
-            with Vertical(id="telemetry-stack", height="20%"):
-                yield Label("[bold green]SYSTEM TELEMETRY (LIVE TAIL)[/bold green]", classes="pane-title")
-                yield RichLog(id="telemetry-log", markup=True, wrap=True, highlight=True)
-
-            with Horizontal(id="shell-container", height="10%"):
+            with Horizontal(id="shell-container"):
                 yield Label("[bold green]SESSION_SHELL $> [/bold green]")
                 yield Input(placeholder="Type follow-up command or /run <module>...", id="shell-input")
         yield Footer()
@@ -282,9 +285,8 @@ class SKDashboard(App):
         status = self.query_one("#status-pane")
         center = self.query_one("#center-stack")
         right = self.query_one("#right-stack")
-        telemetry = self.query_one("#telemetry-stack")
 
-        for p in [status, center, right, telemetry]:
+        for p in [status, center, right]:
             p.set_class(False, "zoomed")
             p.set_class(True, "hidden")
 
@@ -297,9 +299,10 @@ class SKDashboard(App):
         elif pane_type == "right":
             right.set_class(True, "zoomed")
             right.set_class(False, "hidden")
-        elif pane_type == "telemetry":
-            telemetry.set_class(True, "zoomed")
-            telemetry.set_class(False, "hidden")
+
+    def action_toggle_telemetry(self) -> None:
+        """Switch to telemetry screen."""
+        self.push_screen(TelemetryScreen())
 
     def action_reset_layout(self) -> None:
         """Reset layout to multi-pane view."""
@@ -307,9 +310,8 @@ class SKDashboard(App):
         status = self.query_one("#status-pane")
         center = self.query_one("#center-stack")
         right = self.query_one("#right-stack")
-        telemetry = self.query_one("#telemetry-stack")
 
-        for p in [status, center, right, telemetry]:
+        for p in [status, center, right]:
             p.set_class(False, "hidden")
             p.set_class(False, "zoomed")
 
@@ -321,9 +323,16 @@ class SKDashboard(App):
             pass
 
     def telemetry_log(self, message: str):
-        """Helper for telemetry pane."""
+        """Helper for telemetry logging (broadcast to all telemetry logs)."""
         timestamp = time.strftime("%H:%M:%S")
-        self.log_to_pane("telemetry-log", f"[{timestamp}] {message}")
+        # Log to the background screen if it exists
+        try:
+            self.query_one("#telemetry-log-full", RichLog).write(f"[{timestamp}] {message}")
+        except Exception:
+            # If screen isn't mounted, just log internally for now
+            pass
+        # Also log to main raw IO for visibility
+        self.log_to_pane("agent-log", f"[dim][{timestamp}] TELEMETRY: {message}[/dim]")
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
@@ -447,7 +456,6 @@ class SKDashboard(App):
         if not user_text: return
         self.query_one("#shell-input", Input).value = ""
 
-        # ─── Command Handling ───
         cmd = user_text.lower().strip()
         if cmd in ["exit", "quit", "/exit"]:
             self.exit()
@@ -470,20 +478,16 @@ class SKDashboard(App):
             await self.pivot_exploit(module_name)
             return
 
-        # ─── Default: Interaction ───
         self.telemetry_log(f"[bold green]USER_SHELL_CMD[/bold green] -> {user_text[:20]}...")
         self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
         await self.communicate_with_target(user_text)
 
     async def communicate_with_target(self, prompt: str):
-        """Helper to send prompt to LLM while maintaining history."""
         client = LLMClient()
         provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
             
         req = LLMRequest(
-            prompt=prompt, 
-            provider=provider, 
-            model=model,
+            prompt=prompt, provider=provider, model=model,
             messages=self.session_history,
             base_url=self.engine_kwargs.get("base_url"), 
             api_key=self.engine_kwargs.get("api_key")
@@ -498,18 +502,15 @@ class SKDashboard(App):
             self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
             self.telemetry_log(f"[bold green]SHELL_SUCCESS[/bold green] ({latency}ms)")
             
-            # Update history
             self.session_history.append({"role": "user", "content": prompt})
             self.session_history.append({"role": "assistant", "content": resp.content})
             
-            # Update UI Status
             self.query_one("#lbl-latency").update(f"\n[bold cyan]Latency:[/bold cyan]\n{latency}ms")
         except Exception as e:
             self.log_to_pane("agent-log", f"[bold red]ERROR:[/bold red] {str(e)}")
             self.telemetry_log(f"[bold red]SHELL_ERROR[/bold red] -> {str(e)}")
 
     async def pivot_exploit(self, module_name: str):
-        """Execute a secondary module's payloads through the established session."""
         try:
             module = self.engine.get_module(module_name)
             payloads = module.get_payloads()
@@ -517,13 +518,11 @@ class SKDashboard(App):
             self.pivot_count += 1
             self.module_name = module_name
             
-            # ─── UPDATE ALL PANES FOR PIVOT ───
             self.query_one("#lbl-module").update(f"[bold cyan]Module (PIVOT):[/bold cyan]\n{module_name}")
             self.log_to_pane("agent-log", f"\n[bold yellow]>>> PIVOTING: Executing {module_name} payloads...[/bold yellow]")
             self.log_to_pane("brain-log", f"\n[bold magenta]Pivot Strategy:[/bold magenta]\nRunning {module_name} vectors through established context.")
             self.telemetry_log(f"[bold yellow]PIVOT_START[/bold yellow] -> {module_name}")
 
-            # Start new Tree Branch
             tree = self.query_one("#threat-tree", Tree)
             pivot_root = tree.root.add(f"[bold magenta]Pivot {self.pivot_count}:[/bold magenta] {module_name}", expand=True)
 
@@ -531,14 +530,10 @@ class SKDashboard(App):
                 self.winning_payload = p
                 self.query_one("#lbl-payload").update(f"\n[bold yellow]Last Payload:[/bold yellow]\n[dim]{p[:100]}...[/dim]")
                 self.telemetry_log(f"[cyan]PIVOT_VECTOR[/cyan] -> {i+1}/{len(payloads)}")
-                
-                # Update Tree
                 self.last_turn_node = pivot_root.add(f"[bold yellow]Vector {i+1}:[/bold yellow] Attempt", expand=True)
                 
-                # Execute
                 self.log_to_pane("agent-log", f"\n[bold cyan]Vector {i+1}:[/bold cyan] {p[:100]}...")
                 
-                # We reuse communicate_with_target but we need the response for scoring
                 client = LLMClient()
                 provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
                 req = LLMRequest(
@@ -549,25 +544,18 @@ class SKDashboard(App):
                 resp = await client.send(req)
                 self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
                 
-                # ─── REAL-TIME SCORING ───
                 score = module.scorer.score(response_text=resp.content, attack_payload=p)
                 result_str = score.result.value
                 res_color = "green" if result_str == "success" else "yellow" if result_str == "partial" else "red"
                 
-                # Update Tree with Score
-                icon = "✅" if result_str == "success" else "❌" if result_str == "failure" else "⚠️"
-                self.last_turn_node.add(f"{icon} [bold {res_color}]Response ({result_str})[/bold {res_color}]")
-                
-                # Update Education Pane
+                self.last_turn_node.add(f"[bold {res_color}]Response ({result_str})[/bold {res_color}]")
                 if score.remediation:
                     self.log_to_pane("edu-log", f"\n[bold {res_color}]Analysis (Pivot {i+1}):[/bold {res_color}]")
                     self.log_to_pane("edu-log", f"{score.remediation}")
 
-                # Update History
                 self.session_history.append({"role": "user", "content": p})
                 self.session_history.append({"role": "assistant", "content": resp.content})
-                
-                await asyncio.sleep(1) # Visual pacing
+                await asyncio.sleep(1)
 
             self.telemetry_log(f"[bold green]PIVOT_COMPLETE[/bold green] -> {module_name}")
 
@@ -578,7 +566,6 @@ class SKDashboard(App):
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
         self.session_history = event.data.get("history", [])
-        
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.telemetry_log("[bold green]ATTACK_ORCHESTRATION_COMPLETE[/bold green]")
         
