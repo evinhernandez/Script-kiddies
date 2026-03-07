@@ -17,6 +17,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from src.utils.llm_client import LLMClient, LLMRequest
+from src.core.engine import SKEngine
 
 HACKER_QUOTES = [
     "Hack the planet! — Hackers (1995)",
@@ -191,6 +192,8 @@ class SKDashboard(App):
         self.is_zoomed = False
         self.is_compromised = False
         self.winning_payload = None
+        self.session_history = []
+        self.engine = SKEngine()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -232,7 +235,7 @@ class SKDashboard(App):
             
             with Horizontal(id="shell-container"):
                 yield Label("[bold green]SESSION_SHELL $> [/bold green]")
-                yield Input(placeholder="Send follow-up command to compromised model...", id="shell-input")
+                yield Input(placeholder="Type follow-up command or /run <module>...", id="shell-input")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -299,29 +302,17 @@ class SKDashboard(App):
 
     async def execute_engine(self):
         """Background task to run the SKEngine."""
-        from src.core.engine import SKEngine
-        
-        engine = SKEngine()
-        
-        def engine_callback(event_type: str, data: dict):
-            if event_type == "attack_fired":
-                self.post_message(AttackFired(data))
-            elif event_type == "target_responded":
-                self.post_message(TargetResponded(data))
-            elif event_type == "attack_complete":
-                self.post_message(AttackComplete(data))
-
         try:
             if '/' in self.target:
                 provider, model = self.target.split('/', 1)
             else:
                 provider, model = "openai", self.target
             
-            result = await engine.run_module(
+            result = await self.engine.run_module(
                 module_name=self.module_name,
                 target_provider=provider,
                 target_model=model,
-                on_event=engine_callback,
+                on_event=self.engine_callback,
                 **self.engine_kwargs
             )
             
@@ -332,7 +323,7 @@ class SKDashboard(App):
             
             if status == "SUCCESS":
                 self.is_compromised = True
-                # Show Shell using 'block' which is supported by Textual
+                # Show Shell
                 shell = self.query_one("#shell-container")
                 shell.styles.display = "block"
                 self.query_one("#shell-input").focus()
@@ -346,6 +337,14 @@ class SKDashboard(App):
             self.log_to_pane("agent-log", f"[dim]{error_details}[/dim]")
             self.query_one("#lbl-hacking").update("\n[bold red]ENGINE CRASHED[/bold red]")
 
+    def engine_callback(self, event_type: str, data: dict):
+        if event_type == "attack_fired":
+            self.post_message(AttackFired(data))
+        elif event_type == "target_responded":
+            self.post_message(TargetResponded(data))
+        elif event_type == "attack_complete":
+            self.post_message(AttackComplete(data))
+
     # ─── Event Handlers ───
 
     def on_attack_fired(self, event: AttackFired) -> None:
@@ -353,7 +352,7 @@ class SKDashboard(App):
         thought = event.data.get("thought", "Calculating strategy...")
         payload = event.data.get("payload", "")
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
-        self.winning_payload = payload # Keep track of potential winner
+        self.winning_payload = payload
         
         self.log_to_pane("agent-log", f"\n[bold magenta]— TURN {turn} —[/bold magenta]")
         self.log_to_pane("agent-log", f"[bold cyan]Payload fired:[/bold cyan] {payload[:300]}")
@@ -387,10 +386,8 @@ class SKDashboard(App):
             banner.styles.display = "block"
             banner.update("\n[b]!!! PWND !!![/b]\nTARGET COMPROMISED")
             
-            # Show Winning Exploit clearly
             self.query_one("#lbl-secret").update(f"\n[bold red]Winning Exploit:[/bold red]\n[bold white]{self.winning_payload}[/bold white]")
 
-            # Educational Tracing (Reproduction)
             base_url = self.engine_kwargs.get("base_url", "http://target/v1")
             model = self.engine_kwargs.get("model", "phi3")
             curl_cmd = f"curl -X POST {base_url}/chat/completions -d '{{\"model\": \"{model}\", \"messages\": [{{...}}]}}'"
@@ -412,43 +409,91 @@ class SKDashboard(App):
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         self.query_one("#lbl-hacking").update("\n[dim]Waiting for agent...[/dim]")
 
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle manual interaction in the Virtual Shell."""
-        user_text = event.value
-        if not user_text: return
-        
-        self.query_one("#shell-input", Input).value = ""
-        self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
-        
-        client = LLMClient()
-        provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
-            
-        # FIX: Corrected argument names from target_provider/target_model to provider/model
-        req = LLMRequest(
-            prompt=user_text, 
-            provider=provider, 
-            model=model,
-            base_url=self.engine_kwargs.get("base_url"), 
-            api_key=self.engine_kwargs.get("api_key")
-        )
-        
-        self.log_to_pane("agent-log", "[dim]Shell communicating with target...[/dim]")
-        try:
-            resp = await client.send(req)
-            self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
-        except Exception as e:
-            self.log_to_pane("agent-log", f"[bold red]SHELL ERROR:[/bold red] {str(e)}")
-
     def on_attack_complete(self, event: AttackComplete) -> None:
         self.total_tokens = event.data.get("total_tokens", self.total_tokens)
+        self.session_history = event.data.get("history", []) # Capture history for shell
+        
         self.query_one("#lbl-tokens").update(f"\n[bold cyan]Tokens:[/bold cyan]\n{self.total_tokens}")
         
         spinner = self.query_one("#loading-spinner")
-        spinner.styles.display = "none"
+        if spinner: spinner.styles.display = "none"
         self.query_one("#lbl-hacking").update("\n[bold green]SESSION COMPLETED[/bold green]")
         
         quote = random.choice(HACKER_QUOTES)
         self.log_to_pane("brain-log", f"\n[italic cyan]\"{quote}\"[/italic cyan]")
+
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle manual interaction in the Virtual Shell."""
+        user_text = event.value
+        if not user_text: return
+        self.query_one("#shell-input", Input).value = ""
+
+        # ─── Command Handling ───
+        cmd = user_text.lower().strip()
+        if cmd in ["exit", "quit", "/exit"]:
+            self.exit()
+            return
+        
+        if cmd == "/help":
+            self.log_to_pane("agent-log", "\n[bold yellow]Shell Commands:[/bold yellow]")
+            self.log_to_pane("agent-log", "  exit, quit, /exit - Return to Console")
+            self.log_to_pane("agent-log", "  /run <module>     - Execute another module's payloads via this session")
+            self.log_to_pane("agent-log", "  /clear            - Clear the IO log")
+            return
+
+        if cmd == "/clear":
+            self.query_one("#agent-log", RichLog).clear()
+            return
+
+        if cmd.startswith("/run "):
+            module_name = cmd.replace("/run ", "").strip()
+            await self.pivot_exploit(module_name)
+            return
+
+        # ─── Default: Interaction ───
+        self.log_to_pane("agent-log", f"\n[bold green]SHELL >> [/bold green]{user_text}")
+        await self.communicate_with_target(user_text)
+
+    async def communicate_with_target(self, prompt: str):
+        """Helper to send prompt to LLM while maintaining history."""
+        client = LLMClient()
+        provider, model = self.target.split('/', 1) if '/' in self.target else ("openai", self.target)
+            
+        req = LLMRequest(
+            prompt=prompt, 
+            provider=provider, 
+            model=model,
+            messages=self.session_history,
+            base_url=self.engine_kwargs.get("base_url"), 
+            api_key=self.engine_kwargs.get("api_key")
+        )
+        
+        self.log_to_pane("agent-log", "[dim]Communicating...[/dim]")
+        try:
+            resp = await client.send(req)
+            self.log_to_pane("agent-log", f"[bold green]SHELL << [/bold green]{resp.content}")
+            # Update history
+            self.session_history.append({"role": "user", "content": prompt})
+            self.session_history.append({"role": "assistant", "content": resp.content})
+        except Exception as e:
+            self.log_to_pane("agent-log", f"[bold red]ERROR:[/bold red] {str(e)}")
+
+    async def pivot_exploit(self, module_name: str):
+        """Execute a secondary module's payloads through the established session."""
+        try:
+            module = self.engine.get_module(module_name)
+            payloads = module.get_payloads()
+            
+            self.log_to_pane("agent-log", f"\n[bold yellow]>>> PIVOTING: Executing {module_name} payloads...[/bold yellow]")
+            self.log_to_pane("brain-log", f"\n[bold magenta]Pivot Strategy:[/bold magenta]\nRunning {module_name} vectors through established context.")
+
+            for i, p in enumerate(payloads):
+                self.log_to_pane("agent-log", f"\n[bold cyan]Vector {i+1}:[/bold cyan] {p[:100]}...")
+                await self.communicate_with_target(p)
+                await asyncio.sleep(1) # Visual pacing
+
+        except Exception as e:
+            self.log_to_pane("agent-log", f"[bold red]PIVOT FAILED:[/bold red] {str(e)}")
 
 if __name__ == "__main__":
     app = SKDashboard("prompt_injection", "openai/gpt-4o")
